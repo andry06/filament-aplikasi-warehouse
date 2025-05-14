@@ -23,4 +23,21 @@ class Warehouse extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+
+    /**
+     * Get all of the stocks for the warehouse.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function stocks(): HasMany
+    {
+        return $this->hasMany(Stock::class);
+    }
+
+    public function stockhistories(): HasMany
+    {
+        return $this->hasMany(StockHistory::class);
+    }
+
 }

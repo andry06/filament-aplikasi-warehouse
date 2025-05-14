@@ -86,4 +86,7 @@ return [
 
     'livewire_loading_delay' => 'default',
 
+    'use_input_mask' => true,
+
+
 ];

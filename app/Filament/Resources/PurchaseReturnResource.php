@@ -4,7 +4,6 @@ namespace App\Filament\Resources;
 
 use Filament\Forms;
 use Filament\Tables;
-use App\Models\Setting;
 use App\Models\Supplier;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
@@ -13,26 +12,26 @@ use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\DB;
-use App\Services\GoodReceiveService;
+use App\Services\TransactionService;
+use App\Services\PurchaseReturnService;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
-use App\Services\TransactionService;
+use App\Models\Transaction\PurchaseReturn;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\GoodReceiveResource\Pages;
-use App\Filament\Resources\GoodReceiveResource\RelationManagers;
+use App\Filament\Resources\PurchaseReturnResource\Pages;
+use App\Filament\Resources\PurchaseReturnResource\RelationManagers;
 
-class GoodReceiveResource extends Resource
+class PurchaseReturnResource extends Resource
 {
-
     protected static ?string $model = Transaction::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationIcon = 'heroicon-o-backward';
 
-    protected static ?string $modelLabel = 'Penerimaan Barang';
+    protected static ?string $modelLabel = 'Pengembalian Barang';
 
     protected static ?string $navigationGroup = 'Pembelian';
 
-    protected static ?int $navigationSort = 14;
+    protected static ?int $navigationSort = 15;
 
     public static function form(Form $form): Form
     {
@@ -46,7 +45,7 @@ class GoodReceiveResource extends Resource
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve'),
                     Forms\Components\TextInput::make('number')
                         ->label('No Transaksi')
-                        ->default(fn () => TransactionService::generateGoodReceiveNumber()['number'])
+                        ->default(fn () => TransactionService::generatePurchaseReturnNumber()['number'])
                         ->disabled()
                         ->required(),
                     Forms\Components\Select::make('warehouse_id')
@@ -60,18 +59,18 @@ class GoodReceiveResource extends Resource
                         ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->searchable(),
                     Forms\Components\TextInput::make('reference_number')
-                        ->label('No SJ / Invoice')
+                        ->label('No SJ Pengembalian')
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->validationMessages([
-                            'required' => 'No SJ / Invoice wajib diisi.',
+                            'required' => 'No SJ Pengembalian wajib diisi.',
                         ]),
                     Forms\Components\TextInput::make('pic_field')
-                        ->label('Diterima oleh')
+                        ->label('Dikirim oleh')
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->validationMessages([
-                            'required' => 'Diterima oleh wajib diisi.',
+                            'required' => 'Dikirim oleh wajib diisi.',
                         ]),
                     Forms\Components\TextInput::make('note')
                         ->label('Catatan')->columnSpan(['lg' => 2, 'md' => 3, 'sm' => 1]),
@@ -80,7 +79,7 @@ class GoodReceiveResource extends Resource
                             ->label('Buat')
                             ->submit('create')
                             ->color('primary')
-                            ->visible(fn () => request()->routeIs('filament.admin.resources.good-receives.create')),
+                            ->visible(fn () => request()->routeIs('filament.admin.resources.purchase-returns.create')),
                         Forms\Components\Actions\Action::make('save')
                             ->label('Simpan')
                             ->submit('save')
@@ -93,19 +92,15 @@ class GoodReceiveResource extends Resource
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
                                 try {
-                                    $goodReceiveService = app(GoodReceiveService::class);
-
                                     DB::beginTransaction();
+                                    $purchaseReturnService = app(PurchaseReturnService::class);
 
                                     if ($livewire->record?->status == 'draft') {
-                                        $goodReceiveService->approve($livewire->record);
+                                        $purchaseReturnService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
-                                        if ($livewire->record->purchase_item_used) {
-                                            throw new \Exception('Barang penerimaan ini sudah ada pengeluaran.');
-                                        }
 
-                                        $goodReceiveService->cancelApprove($livewire->record);
+                                        $purchaseReturnService->cancelApprove($livewire->record);
 
                                         $message = 'Status berhasil menjadi draft kembali';
                                     }
@@ -117,7 +112,7 @@ class GoodReceiveResource extends Resource
                                         ->success()
                                         ->send();
 
-                                    return redirect()->route('filament.admin.resources.good-receives.edit', [
+                                    return redirect()->route('filament.admin.resources.purchase-returns.edit', [
                                             'record' => $livewire->record->id,
                                         ]);
                                 } catch (\Exception $e) {
@@ -137,7 +132,7 @@ class GoodReceiveResource extends Resource
                                 'target' => '_blank'
                             ])
                             ->url(function ($livewire) {
-                                return route('print.good-receives', $livewire->record?->id);
+                                // return route('print.purchase-return', $livewire->record?->id);
                             })->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')
@@ -146,7 +141,7 @@ class GoodReceiveResource extends Resource
                                     url()->previous() ?? static::getResource()::getUrl()
                                 )
                             )
-                            ->visible(fn () => request()->routeIs('filament.admin.resources.good-receives.create'))
+                            ->visible(fn () => request()->routeIs('filament.admin.resources.purchase-returns.create'))
                             ->color('gray'),
 
                     ])->columnSpanFull(),
@@ -171,7 +166,7 @@ class GoodReceiveResource extends Resource
                     ->color('primary')
                     ->weight('bold')
                     ->wrap()
-                    ->url(fn($record) => GoodReceiveResource::getUrl('edit', ['record' => $record]))
+                    ->url(fn($record) => PurchaseReturnResource::getUrl('edit', ['record' => $record]))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('date')
@@ -213,8 +208,6 @@ class GoodReceiveResource extends Resource
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
-
-
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -226,23 +219,21 @@ class GoodReceiveResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationManagers\GoodReceiveItemsRelationManager::class,
+            RelationManagers\PurchaseReturnItemsRelationManager::class,
         ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListGoodReceives::route('/'),
-            'create' => Pages\CreateGoodReceive::route('/create'),
-            'edit' => Pages\EditGoodReceive::route('/{record}/edit'),
+            'index' => Pages\ListPurchaseReturns::route('/'),
+            'create' => Pages\CreatePurchaseReturn::route('/create'),
+            'edit' => Pages\EditPurchaseReturn::route('/{record}/edit'),
         ];
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('type', 'purchase_in');
+        return parent::getEloquentQuery()->where('type', 'purchase_return');
     }
-
 }
-

@@ -1,38 +1,37 @@
 <?php
 
-namespace App\Filament\Resources\GoodReceiveResource\RelationManagers;
+namespace App\Filament\Resources\PurchaseReturnResource\RelationManagers;
 
-use Closure;
 use Filament\Forms;
 use App\Models\Item;
 use Filament\Tables;
+use App\Models\Stock;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItemVariant;
 use App\Models\Transaction;
-use Filament\Support\RawJs;
+use App\Services\StockService;
 use App\Models\TransactionDetail;
+use App\Services\TransactionService;
 use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\Actions\Action;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Resources\RelationManagers\RelationManager;
-use Pelmered\FilamentMoneyField\Forms\Components\MoneyInput;
 
-class GoodReceiveItemsRelationManager extends RelationManager
+class PurchaseReturnItemsRelationManager extends RelationManager
 {
-    protected static string $relationship = 'transactionDetails';
+    protected static string $relationship = 'TransactionDetails';
 
     protected static bool $isLazy = false;
 
-    protected static ?string $title = 'Barang yang diterima';
+    protected static ?string $title = 'Barang yang dikembalikan';
 
     public static function getModelLabel(): string
     {
-        return 'Barang yang diterima';
+        return 'Barang yang dikembalikan';
     }
 
     public function form(Form $form): Form
@@ -51,7 +50,8 @@ class GoodReceiveItemsRelationManager extends RelationManager
                             'accessories' => 'Aksesoris',
                         ])
                         ->afterStateUpdated(function (Set $set, $state) {
-                            $set('item_id', null);
+
+                            $set('qty', null);
                             $set('item_variant_id', null);
                         })
                         ->live()
@@ -68,18 +68,22 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                         return [];
                                     }
 
+                                    $warehouseId = $this->ownerRecord->warehouse_id;
                                     $itemVariantIds = $this->ownerRecord->transactionDetails()
                                         ->pluck('item_variant_id')->toArray();
 
                                     return Item::selectRaw("CONCAT(code, ' - ', name) as value, id")
-                                            ->where('category', $category)
-                                            ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds) {
-                                                $query->whereNotIn('id', $itemVariantIds);
-                                            })
-                                            ->pluck('value', 'id');
+                                        ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds, $warehouseId) {
+                                            $query->whereNotIn('id', $itemVariantIds)
+                                                ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
+                                                    $query->where('warehouse_id', $warehouseId);
+                                                });
+                                        })->where('category', $category)
+                                        ->pluck('value', 'id');
                                 })
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $set('item_variant_id', null);
+                                    $set('qty', null);
                                     $set('unit', Item::find($state)?->unit);
                                 })
                                 ->reactive()
@@ -92,87 +96,48 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                         return [];
                                     }
 
-                                    $itemVariant = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id');
+                                    $warehouseId = $this->ownerRecord->warehouse_id;
+                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
+                                        ->pluck('item_variant_id')->toArray();
 
-                                    return ItemVariant::where('item_id', $itemId)
-                                            ->whereNotIn('id', $itemVariant)
+                                    return ItemVariant::whereNotIn('id', $itemVariantIds)
+                                                ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
+                                                    $query->where('warehouse_id', $warehouseId);
+                                            })->where('item_id', $itemId)
                                             ->pluck('color', 'id');
                                 })
                                 ->afterStateUpdated(function (Set $set, $state) {
-                                    $set('price', ItemVariant::find($state)?->price);
+                                    $warehouseId = $this->ownerRecord->warehouse_id;
+                                    $stockItem = Stock::where('warehouse_id', $warehouseId)
+                                        ->where('item_variant_id', $state)
+                                        ->first();
+
+                                    $set('stock', $stockItem?->stock ?? 0);
                                 })
-                                ->reactive()
-                                ->searchable(),
+                                ->reactive()->searchable(),
                             Forms\Components\TextInput::make('unit')
                                 ->label('Satuan')
                                 ->readOnly(),
-                            Forms\Components\TextInput::make('price')
-                                // ->mask(RawJs::make('$money($input)'))
-                                ->stripCharacters(',')
-                                ->label('Harga')
-                                ->afterStateUpdated(function (Set $set, $state, Get $get) {
-                                    if (!$get('qty')) {
-                                        return [];
-                                    }
-                                    $set('total_price', $state * $get('qty'));
-                                })
-                                ->reactive()
-                                ->prefix('Rp')
-                                ->suffixAction(
-                                    Action::make('refreshPrice')
-                                        ->icon('heroicon-m-document-arrow-up')
-                                        ->tooltip('Simpan harga ke master barang')
-                                        ->action(function (Set $set, Get $get) {
-
-                                            if (! $get('item_variant_id')) {
-                                                Notification::make()
-                                                    ->title('Gagal item belum dipilih.')
-                                                    ->danger()
-                                                    ->send();
-                                                return;
-                                            }
-
-                                            $itemVariant = ItemVariant::find($get('item_variant_id'));
-
-                                            $itemVariant->update([
-                                                'price' => $get('price'),
-                                            ]);
-
-                                            Notification::make()
-                                            ->title('Berhasil memperbarui harga master barang.')
-                                            ->success()
-                                            ->send();
-
-                                        })
-                                )
-                                ->numeric(),
+                            Forms\Components\TextInput::make('stock')
+                                ->label('Stok Gudang')
+                                ->disabled(),
                             Forms\Components\TextInput::make('qty')
                                 ->label('Jumlah')
                                 ->numeric()
+                                ->maxValue(fn (Get $get) => $get('stock')) // ← batas maksimal dari stock
+                                ->reactive()
                                 ->minValue(1)
                                 ->required()
-                                ->afterStateUpdated(function (Set $set, $state, Get $get) {
-                                    if (!$get('price')) {
-                                        return [];
-                                    }
-
-                                    $set('total_price', $state * $get('price'));
-                                })
-                                ->reactive()
                                 ->validationMessages([
-                                    'required' => 'Jumlah oleh wajib diisi.',
+                                    'required' => 'Jumlah wajib diisi.',
+                                    'min' => 'Jumlah minimal adalah 1.',
+                                    'max' => 'Jumlah tidak boleh melebihi stok yang tersedia.',
                                 ]),
-                            Forms\Components\TextInput::make('total_price')
-                                ->label('Total Harga')
-                                ->prefix('Rp')
-                                ->disabled()
-                                ->numeric(),
+                            Forms\Components\TextInput::make('note')
+                                ->label('Catatan')
                         ])->columnSpan(10)->columns(3),
                     ]),
-                    Forms\Components\TextInput::make('note')
-                        ->columnSpanFull()
-                        ->label('Catatan')
+
             ]);
     }
 
@@ -200,8 +165,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->sortable(),
                 Tables\Columns\TextColumn::make('unit')
                     ->label('Unit')
-                    ->sortable()
-                    ->searchable(),
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
                     ->money('IDR', locale: 'id')
@@ -226,33 +190,41 @@ class GoodReceiveItemsRelationManager extends RelationManager
 
             ])
             ->filters([
-            SelectFilter::make('category')
-                ->multiple()
-                ->options([
-                    'asset' => 'Asset',
-                    'main_material' => 'Main Material',
-                    'accessories' => 'Accessories',
-                ])
+                SelectFilter::make('category')
+                    ->multiple()
+                    ->options([
+                        'asset' => 'Asset',
+                        'main_material' => 'Main Material',
+                        'accessories' => 'Accessories',
+                    ])
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->modalWidth('5xl')
                     ->createAnother(false)
                     ->modalSubmitActionLabel('Tambah')
-                    ->modalHeading('Tambah Barang yang diterima')
+                    ->modalHeading('Tambah Barang yang dikembalikan')
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
                     ->action(function (array $data): void {
-
                         try {
                             if ($this->ownerRecord->status == 'approve') {
                                 throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
                             }
 
+                            $stockService = new StockService();
+                            $stock = $stockService->getStock($data['item_variant_id'], $this->ownerRecord?->warehouse_id);
+                            if ($data['qty'] > $stock) {
+                                throw new Exception('Stok tidak mencukupi.');
+                            }
+
                             $this->ownerRecord->transactionDetails()
-                                ->create($data);
+                                ->create($data + [
+                                    'price' => ItemVariant::find($data['item_variant_id'])?->price
+                                ]);
                         } catch (\Exception $e) {
+                            info($e);
                             Notification::make()
                                 ->title('Gagal')
                                 ->body($e->getMessage())
@@ -264,16 +236,16 @@ class GoodReceiveItemsRelationManager extends RelationManager
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->label('')
-                    ->tooltip('Edit')
-                    ->iconSize('md')
-                    ->modalWidth('5xl')
-                    ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve'),
-                Tables\Actions\DeleteAction::make()
-                    ->label('')
-                    ->tooltip('Hapus')
-                    ->iconSize('md')
-                    ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve'),
+                ->label('')
+                ->tooltip('Edit')
+                ->iconSize('md')
+                ->modalWidth('5xl')
+                ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve'),
+            Tables\Actions\DeleteAction::make()
+                ->label('')
+                ->tooltip('Hapus')
+                ->iconSize('md')
+                ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -291,6 +263,5 @@ class GoodReceiveItemsRelationManager extends RelationManager
             ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
     }
-
 
 }

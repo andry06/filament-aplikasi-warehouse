@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('item_id')->nullable()->constrained('items')->onUpdate('cascade')->onDelete('restrict');
             $table->string('color')->nullable();
+            $table->bigInteger('price')->nullable();
             $table->timestamps();
         });
     }

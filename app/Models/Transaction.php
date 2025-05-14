@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -22,7 +23,7 @@ class Transaction extends Model
         'date',
         'type',
         'note',
-        'received_by',
+        'pic_field',
         'status',
     ];
 
@@ -60,6 +61,7 @@ class Transaction extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+
     /**
      * Get all of the transaction details for the transaction.
      *
@@ -68,6 +70,11 @@ class Transaction extends Model
     public function transactionDetails(): HasMany
     {
         return $this->hasMany(TransactionDetail::class);
+    }
+
+    public function getPurchaseItemUsedAttribute(): bool
+    {
+        return $this->transactionDetails()->where('qty_used', '>', 0)->exists();
     }
 
 

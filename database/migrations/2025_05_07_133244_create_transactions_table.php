@@ -25,7 +25,7 @@ return new class extends Migration
             $table->date('date')->nullable();
             $table->string('type')->nullable(); // purchase_in, purchase_return, production_out, production_return
             $table->string('note')->nullable();
-            $table->string('received_by')->nullable();
+            $table->string('pic_field')->nullable();
             $table->string('status')->nullable(); //draft, approve
             $table->timestamps();
         });

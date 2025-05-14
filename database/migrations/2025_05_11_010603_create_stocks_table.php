@@ -1,8 +1,7 @@
 <?php
 
-use App\Models\Item;
+use App\Models\Warehouse;
 use App\Models\ItemVariant;
-use App\Models\Transaction;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
@@ -14,15 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('transaction_details', function (Blueprint $table) {
+        Schema::create('stocks', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(Transaction::class)->nullable();
-            $table->foreignIdFor(Item::class)->nullable();
+            $table->foreignIdFor(Warehouse::class)->nullable();
             $table->foreignIdFor(ItemVariant::class)->nullable();
-            $table->decimal('qty', 8, 2)->nullable();
-            $table->string('unit')->nullable();
-            $table->bigInteger('price')->nullable();
-            $table->string('note')->nullable();
+            $table->decimal('stock', 12, 2)->nullable();
             $table->timestamps();
         });
     }
@@ -32,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transaction_details');
+        Schema::dropIfExists('stocks');
     }
 };

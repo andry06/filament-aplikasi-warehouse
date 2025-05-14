@@ -19,11 +19,12 @@ class ItemVariantsRelationManager extends RelationManager
 
     protected static ?string $title = 'Varian Barang';
 
+    protected static bool $isLazy = false;
+
     public static function getModelLabel(): string
     {
         return 'Varian Barang';
     }
-
 
     public function form(Form $form): Form
     {
@@ -50,6 +51,13 @@ class ItemVariantsRelationManager extends RelationManager
                         'unique' => 'Warna sudah digunakan, silakan gunakan nama lain.',
                         'max' => 'Warna tidak boleh lebih dari :max karakter.',
                     ]),
+                    Forms\Components\TextInput::make('price')
+                    // ->mask(RawJs::make('$money($input)'))
+                        ->stripCharacters(',')
+                        ->label('Harga')
+                        ->columnSpanFull()
+                        ->prefix('Rp ')
+
             ]);
     }
 
@@ -61,6 +69,10 @@ class ItemVariantsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('color')
                     ->label('Warna')
                     ->searchable(),
+                    Tables\Columns\TextColumn::make('price')
+                    ->label('Harga')
+                    ->money('IDR', locale: 'id')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->dateTime('d F Y H:i')

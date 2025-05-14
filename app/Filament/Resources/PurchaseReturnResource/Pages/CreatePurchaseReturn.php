@@ -1,19 +1,18 @@
 <?php
 
-namespace App\Filament\Resources\GoodReceiveResource\Pages;
+namespace App\Filament\Resources\PurchaseReturnResource\Pages;
 
 use Filament\Actions;
 use App\Models\Transaction;
-use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Notifications\Notification;
 use App\Services\TransactionService;
 use Filament\Resources\Pages\CreateRecord;
-use App\Filament\Resources\GoodReceiveResource;
+use App\Filament\Resources\PurchaseReturnResource;
 
-class CreateGoodReceive extends CreateRecord
+class CreatePurchaseReturn extends CreateRecord
 {
-    protected static string $resource = GoodReceiveResource::class;
+    protected static string $resource = PurchaseReturnResource::class;
 
     protected function getFormActions(): array
     {
@@ -22,12 +21,12 @@ class CreateGoodReceive extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $goodReceiveNumber = TransactionService::generateGoodReceiveNumber();
+        $purchaseReturnNumber = TransactionService::generatePurchaseReturnNumber();
         $data['user_id'] = auth()->id();
-        $data['number'] = $goodReceiveNumber['number'];
-        $data['counter'] = $goodReceiveNumber['counter'];
+        $data['number'] = $purchaseReturnNumber['number'];
+        $data['counter'] = $purchaseReturnNumber['counter'];
         $data['status'] = 'draft';
-        $data['type'] = 'purchase_in';
+        $data['type'] = 'purchase_return';
 
         return $data;
     }
@@ -45,9 +44,8 @@ class CreateGoodReceive extends CreateRecord
         return Notification::make()
             ->success()
             ->title('Berhasil')
-            ->body('Data header penerimaan barang berhasil ditambahkan.');
+            ->body('Data header pengembalian barang berhasil ditambahkan.');
     }
-
 
 
 }
