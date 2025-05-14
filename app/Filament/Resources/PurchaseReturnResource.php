@@ -27,9 +27,9 @@ class PurchaseReturnResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-backward';
 
-    protected static ?string $modelLabel = 'Pengembalian Barang';
+    protected static ?string $modelLabel = 'Barang Kembali';
 
-    protected static ?string $navigationGroup = 'Pembelian';
+    protected static ?string $navigationGroup = 'Belanja';
 
     protected static ?int $navigationSort = 15;
 
@@ -132,7 +132,7 @@ class PurchaseReturnResource extends Resource
                                 'target' => '_blank'
                             ])
                             ->url(function ($livewire) {
-                                // return route('print.purchase-return', $livewire->record?->id);
+                                return route('print.purchase-returns', $livewire->record?->id);
                             })->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')

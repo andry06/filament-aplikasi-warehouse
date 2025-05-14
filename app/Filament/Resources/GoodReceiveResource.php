@@ -28,9 +28,9 @@ class GoodReceiveResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
-    protected static ?string $modelLabel = 'Penerimaan Barang';
+    protected static ?string $modelLabel = 'Barang Masuk';
 
-    protected static ?string $navigationGroup = 'Pembelian';
+    protected static ?string $navigationGroup = 'Belanja';
 
     protected static ?int $navigationSort = 14;
 

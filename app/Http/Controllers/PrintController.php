@@ -20,4 +20,17 @@ class PrintController extends Controller
             'setting' => Setting::first()
         ]);
     }
+
+    public function printPurchaseReturn(Transaction $transaction)
+    {
+        if($transaction->type != 'purchase_return') {
+            abort(404);
+        }
+
+        return view('prints.purchase-return', [
+            'transaction' => $transaction,
+            'transactionDetails' => $transaction->transactionDetails()->get(),
+            'setting' => Setting::first()
+        ]);
+    }
 }

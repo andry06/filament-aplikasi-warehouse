@@ -18,7 +18,7 @@ class TransactionService
             ->first();
 
         $counterBefore = $transaction ? $transaction->counter : 0;
-        $prefix = 'PBM-'; // pembelian barang masuk
+        $prefix = 'BBM-'; // pembelian barang masuk
         $counter = $counterBefore+1; // Atau menggunakan nomor urut lainnya
         // Array bulan Romawi
         $romanMonths = [
@@ -42,7 +42,7 @@ class TransactionService
             ->first();
 
         $counterBefore = $transaction ? $transaction->counter : 0;
-        $prefix = 'PBS-'; // Pengembalian Barang Supplier
+        $prefix = 'BBK-'; // Pengembalian Barang Supplier
         $counter = $counterBefore+1; // Atau menggunakan nomor urut lainnya
         // Array bulan Romawi
         $romanMonths = [
