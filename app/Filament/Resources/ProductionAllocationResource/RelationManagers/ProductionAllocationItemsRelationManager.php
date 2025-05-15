@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\PurchaseReturnResource\RelationManagers;
+namespace App\Filament\Resources\ProductionAllocationResource\RelationManagers;
 
 use Filament\Forms;
 use App\Models\Item;
@@ -11,27 +11,24 @@ use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItemVariant;
-use App\Models\Transaction;
 use App\Services\StockService;
 use App\Models\TransactionDetail;
-use App\Services\TransactionService;
-use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Resources\RelationManagers\RelationManager;
 
-class PurchaseReturnItemsRelationManager extends RelationManager
+class ProductionAllocationItemsRelationManager extends RelationManager
 {
     protected static string $relationship = 'TransactionDetails';
 
     protected static bool $isLazy = false;
 
-    protected static ?string $title = 'Barang yang dikembalikan';
+    protected static ?string $title = 'Barang yang dialokasikan';
 
     public static function getModelLabel(): string
     {
-        return 'Barang yang dikembalikan';
+        return 'Barang yang dialokasikan';
     }
 
     public function form(Form $form): Form
@@ -108,11 +105,14 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 })
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $warehouseId = $this->ownerRecord->warehouse_id;
-                                    $stockItem = Stock::where('warehouse_id', $warehouseId)
-                                        ->where('item_variant_id', $state)
-                                        ->first();
 
-                                    $set('stock', $stockItem?->stock ?? 0);
+                                    if(!$state || !$warehouseId){
+                                        return [];
+                                    }
+                                    $stockService = new StockService();
+                                    $stock = $stockService->getStock($state, $warehouseId);
+
+                                    $set('stock', $stock);
                                 })
                                 ->reactive()->searchable(),
                             Forms\Components\TextInput::make('unit')
@@ -140,6 +140,7 @@ class PurchaseReturnItemsRelationManager extends RelationManager
 
             ]);
     }
+
 
     public function table(Table $table): Table
     {
@@ -203,7 +204,7 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                     ->modalWidth('5xl')
                     ->createAnother(false)
                     ->modalSubmitActionLabel('Tambah')
-                    ->modalHeading('Tambah Barang yang dikembalikan')
+                    ->modalHeading('Tambah Barang yang dialokasikan')
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
@@ -231,9 +232,8 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 ->warning()
                                 ->send();
                         }
-
                     })
-            ])
+                ])
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->label('')
@@ -263,5 +263,4 @@ class PurchaseReturnItemsRelationManager extends RelationManager
             ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
     }
-
 }

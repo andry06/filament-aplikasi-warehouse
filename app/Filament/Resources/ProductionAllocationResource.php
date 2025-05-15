@@ -4,8 +4,6 @@ namespace App\Filament\Resources;
 
 use Filament\Forms;
 use Filament\Tables;
-use App\Models\Setting;
-use App\Models\Supplier;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
 use Filament\Tables\Table;
@@ -13,36 +11,38 @@ use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\DB;
-use App\Services\GoodReceiveService;
+use App\Services\TransactionService;
+use App\Services\PurchaseReturnService;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
-use App\Services\TransactionService;
+use App\Models\Transaction\ProductionAllocation;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\GoodReceiveResource\Pages;
-use App\Filament\Resources\GoodReceiveResource\RelationManagers;
+use App\Filament\Resources\ProductionAllocationResource\Pages;
+use App\Filament\Resources\ProductionAllocationResource\RelationManagers;
+use App\Services\ProductionAllocationService;
 
-class GoodReceiveResource extends Resource
+class ProductionAllocationResource extends Resource
 {
-
     protected static ?string $model = Transaction::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-uturn-right';
 
-    protected static ?string $modelLabel = 'Barang Masuk';
+    protected static ?string $modelLabel = 'Alokasi Barang ke Produksi';
+    protected static ?string $navigationLabel = 'Alokasi Barang';
 
-    protected static ?string $navigationGroup = 'Belanja';
+    protected static ?string $navigationGroup = 'Produksi';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 14;
 
     public static function form(Form $form): Form
     {
         return $form
-        ->schema([
-            Forms\Components\Fieldset::make(fn ($livewire) => $livewire->record?->status == 'approve' ? 'Header - Approve ' : 'Header - Draft')
+            ->schema([
+                Forms\Components\Fieldset::make(fn ($livewire) => $livewire->record?->status == 'approve' ? 'Header - Approve ' : 'Header - Draft')
                 ->schema([
                     Forms\Components\TextInput::make('number')
                         ->label('No Transaksi')
-                        ->default(fn () => TransactionService::generateGoodReceiveNumber()['number'])
+                        ->default(fn () => TransactionService::generateProductionAllocationNumber()['number'])
                         ->disabled()
                         ->required(),
                     Forms\Components\DatePicker::make('date')
@@ -60,33 +60,41 @@ class GoodReceiveResource extends Resource
                         ->options(Warehouse::all()->pluck('name', 'id'))
                         ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->default(fn () => Warehouse::orderBy('id')->value('id')),
-                    Forms\Components\Select::make('supplier_id')
-                        ->label('Supplier')
-                        ->relationship(
-                            name: 'supplier',
-                            titleAttribute: 'name',
-                            modifyQueryUsing: fn (Builder $query) => $query->orderBy('name')
-                        )
-                        ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->searchable(['name']),
-                    Forms\Components\TextInput::make('reference_number')
-                        ->label('No SJ / Invoice')
-                        ->required()
-                        ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->validationMessages([
-                            'required' => 'No SJ / Invoice wajib diisi.',
-                        ]),
                     Forms\Components\TextInput::make('pic_field')
-                        ->label('Diterima oleh')
+                        ->label('Dikirim oleh')
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->validationMessages([
-                            'required' => 'Diterima oleh wajib diisi.',
+                            'required' => 'Dikirim oleh wajib diisi.',
+                        ]),
+                    Forms\Components\Select::make('project_id')
+                        ->label('Nama Project')
+                        ->relationship(
+                            name: 'project',
+                            titleAttribute: 'name',
+                            modifyQueryUsing: fn (Builder $query) => $query->where('is_completed', false)->orderBy('name')
+                        )
+                        ->createOptionForm([
+                            Forms\Components\TextInput::make('name')
+                                ->required(),
+                        ])
+                        ->createOptionModalHeading('Tambah Project Baru')
+                        ->editOptionForm([
+                            Forms\Components\TextInput::make('name')
+                                ->required(),
+                        ])
+                        ->editOptionModalHeading('Ubah Nama Project')
+                        ->columnSpan(['xl' => 2])
+                        ->searchable(['name'])
+                        ->disabled(fn ($livewire) => $livewire->record?->status == 'approve' || $livewire->record?->transactionDetails()->exists())
+                        ->validationMessages([
+                            'required' => 'Nama Project wajib dipilih.',
                         ]),
                     Forms\Components\TextInput::make('note')
-                        ->label('Catatan')->columnSpan(['lg' => 2, 'md' => 3, 'sm' => 1]),
+                        ->label('Catatan')
+                        ->columnSpan(['xl' => 2]),
                     Forms\Components\Actions::make([
-                        Forms\Components\Actions\Action::make('Buat')
+                        Forms\Components\Actions\Action::make('create')
                             ->label('Buat')
                             ->submit('create')
                             ->color('primary')
@@ -103,19 +111,15 @@ class GoodReceiveResource extends Resource
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
                                 try {
-                                    $goodReceiveService = app(GoodReceiveService::class);
-
                                     DB::beginTransaction();
+                                    $productionAllocationService = app(ProductionAllocationService::class);
 
                                     if ($livewire->record?->status == 'draft') {
-                                        $goodReceiveService->approve($livewire->record);
+                                        $productionAllocationService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
-                                        if ($livewire->record->purchase_item_used) {
-                                            throw new \Exception('Barang penerimaan ini sudah ada pengeluaran.');
-                                        }
 
-                                        $goodReceiveService->cancelApprove($livewire->record);
+                                        $productionAllocationService->cancelApprove($livewire->record);
 
                                         $message = 'Status berhasil menjadi draft kembali';
                                     }
@@ -127,7 +131,7 @@ class GoodReceiveResource extends Resource
                                         ->success()
                                         ->send();
 
-                                    return redirect()->route('filament.admin.resources.good-receives.edit', [
+                                    return redirect()->route('filament.admin.resources.production-allocations.edit', [
                                             'record' => $livewire->record->id,
                                         ]);
                                 } catch (\Exception $e) {
@@ -146,9 +150,8 @@ class GoodReceiveResource extends Resource
                             ->extraAttributes([
                                 'target' => '_blank'
                             ])
-                            ->url(function ($livewire) {
-                                return route('print.good-receives', $livewire->record?->id);
-                            })->visible(fn ($livewire) => $livewire->record != null),
+                            ->url(fn ($livewire) => route('print.production-allocations', $livewire->record?->id))
+                            ->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')
                             ->alpineClickHandler(
@@ -169,8 +172,8 @@ class GoodReceiveResource extends Resource
                     '2xl' => 5,
                 ])
             ]);
-
     }
+
 
     public static function table(Table $table): Table
     {
@@ -181,7 +184,7 @@ class GoodReceiveResource extends Resource
                     ->color('primary')
                     ->weight('bold')
                     ->wrap()
-                    ->url(fn($record) => GoodReceiveResource::getUrl('edit', ['record' => $record]))
+                    ->url(fn($record) => ProductionAllocationResource::getUrl('edit', ['record' => $record]))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('date')
@@ -189,14 +192,8 @@ class GoodReceiveResource extends Resource
                     ->dateTime('d F Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('reference_number')
-                    ->label('No SJ / Invoice')
+                    ->label('Project')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('supplier_name')
-                    ->label('Nama Pemasok')
-                    ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where("suppliers.name", "LIKE", "%$search%");
-                    })
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('pic_field')
                     ->label('Diterima oleh'),
                 Tables\Columns\TextColumn::make('status')
@@ -223,8 +220,6 @@ class GoodReceiveResource extends Resource
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
-
-
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -236,23 +231,23 @@ class GoodReceiveResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationManagers\GoodReceiveItemsRelationManager::class,
+            RelationManagers\ProductionAllocationItemsRelationManager::class,
         ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListGoodReceives::route('/'),
-            'create' => Pages\CreateGoodReceive::route('/create'),
-            'edit' => Pages\EditGoodReceive::route('/{record}/edit'),
+            'index' => Pages\ListProductionAllocations::route('/'),
+            'create' => Pages\CreateProductionAllocation::route('/create'),
+            'edit' => Pages\EditProductionAllocation::route('/{record}/edit'),
         ];
     }
 
+
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('type', 'purchase_in');
+        return parent::getEloquentQuery()->where('type', 'production_allocation');
     }
 
 }
-

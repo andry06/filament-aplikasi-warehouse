@@ -24,6 +24,7 @@ class Transaction extends Model
         'type',
         'note',
         'pic_field',
+        'project_id',
         'status',
     ];
 
@@ -39,6 +40,11 @@ class Transaction extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     /**
@@ -61,7 +67,6 @@ class Transaction extends Model
         return $this->belongsTo(Supplier::class);
     }
 
-
     /**
      * Get all of the transaction details for the transaction.
      *
@@ -71,11 +76,5 @@ class Transaction extends Model
     {
         return $this->hasMany(TransactionDetail::class);
     }
-
-    public function getPurchaseItemUsedAttribute(): bool
-    {
-        return $this->transactionDetails()->where('qty_used', '>', 0)->exists();
-    }
-
 
 }

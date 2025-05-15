@@ -47,9 +47,6 @@ class StockService
 
     public function addStockHistoryItem(Transaction $transaction, TransactionDetail $transactionDetail, float $beginStock):void
     {
-        $lastStockHistory = StockHistory::where('warehouse_id', $transaction->warehouse_id)
-            ->where('item_variant_id', $transactionDetail->item_variant_id)
-            ->orderBy('date', 'desc')->orderBy('id', 'desc')->first();
 
         $movementType = in_array($transaction->type, ['purchase_in', 'production_return']) ? 'in' : 'out';
         StockHistory::create([
@@ -63,11 +60,8 @@ class StockService
             'movement_type' => $movementType
         ]);
 
-        if ($lastStockHistory) {
-            if (! $this->isUptudateHistoryStock($transaction, $lastStockHistory)) {
-                $this->refreshBeginEndingStock($transaction, $transactionDetail->item_variant_id);
-            }
-        }
+
+        $this->refreshBeginEndingStock($transaction, $transactionDetail->item_variant_id);
 
     }
 
@@ -79,35 +73,16 @@ class StockService
         foreach ($transactionDetails as $transactionDetail) {
             $stockHistory = $transactionDetail->stockHistory;
 
-            $stockHistoryId = $stockHistory->id;
-
             $stockHistory->delete();
 
             $beginStock = $this->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
 
             $this->updateStockItem($transaction, $transactionDetail, $beginStock, $movementTypeCancel);
 
-            $lastStockHistory = StockHistory::where('warehouse_id', $transaction->warehouse_id)
-                ->where('item_variant_id', $transactionDetail->item_variant_id)
-                ->orderBy('date', 'desc')->orderBy('id', 'desc')->first();
-
-            if ($lastStockHistory){
-                if ($stockHistoryId < $lastStockHistory->id) {
-                    $this->refreshBeginEndingStock($transaction, $transactionDetail->item_variant_id);
-                }
-            }
+            $this->refreshBeginEndingStock($transaction, $transactionDetail->item_variant_id);
 
         }
     }
-
-    public function isUptudateHistoryStock(Transaction $transaction, StockHistory $lastStockHistory): bool
-    {
-        $lastDateTransaction = Carbon::parse($lastStockHistory->date);
-        $transactionDate = Carbon::parse($transaction->date);
-
-        return $lastDateTransaction->gte($transactionDate);
-    }
-
 
     public function refreshBeginEndingStock(Transaction $transaction, int $itemVariantId): void
     {
@@ -115,6 +90,7 @@ class StockService
             ->where('item_variant_id', $itemVariantId)
             ->whereDate('date', '<', $transaction->date->format('Y-m-d'))
             ->orderBy('date', 'desc')
+            ->orderBy('movement_type', 'desc')
             ->orderBy('id', 'desc')
             ->first();
 
@@ -122,7 +98,8 @@ class StockService
             ->where('item_variant_id', $itemVariantId)
             ->whereDate('date', '>=', $transaction->date->format('Y-m-d'))
             ->orderBy('date', 'asc')
-            ->orderBy('id', 'asc')
+            ->orderBy('movement_type', 'asc')
+            ->orderBy('id', 'desc')
             ->get();
 
         $beginStock = $beforeStockHistory ? $beforeStockHistory->stock : 0;

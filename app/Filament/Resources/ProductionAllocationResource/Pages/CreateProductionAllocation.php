@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Filament\Resources\PurchaseReturnResource\Pages;
+namespace App\Filament\Resources\ProductionAllocationResource\Pages;
 
 use Filament\Actions;
 use App\Models\Transaction;
+use App\Services\TransactionService;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Notifications\Notification;
-use App\Services\TransactionService;
 use Filament\Resources\Pages\CreateRecord;
-use App\Filament\Resources\PurchaseReturnResource;
+use App\Filament\Resources\ProductionAllocationResource;
 
-class CreatePurchaseReturn extends CreateRecord
+class CreateProductionAllocation extends CreateRecord
 {
-    protected static string $resource = PurchaseReturnResource::class;
+    protected static string $resource = ProductionAllocationResource::class;
 
     protected function getFormActions(): array
     {
@@ -26,7 +26,7 @@ class CreatePurchaseReturn extends CreateRecord
         $data['number'] = $purchaseReturnNumber['number'];
         $data['counter'] = $purchaseReturnNumber['counter'];
         $data['status'] = 'draft';
-        $data['type'] = 'purchase_return';
+        $data['type'] = 'production_allocation';
 
         return $data;
     }
@@ -44,8 +44,8 @@ class CreatePurchaseReturn extends CreateRecord
         return Notification::make()
             ->success()
             ->title('Berhasil')
-            ->body('Data header pengembalian barang ke pemasok berhasil ditambahkan.');
+            ->body('Data header alokasi barang ke produksi berhasil ditambahkan.');
     }
 
-
 }
+

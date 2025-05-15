@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('number')->nullable();
             $table->string('reference_number')->nullable();
             $table->date('date')->nullable();
-            $table->string('type')->nullable(); // purchase_in, purchase_return, production_out, production_return
+            $table->string('type')->nullable(); // purchase_in, purchase_return, production_allocation, production_return
             $table->string('note')->nullable();
             $table->string('pic_field')->nullable();
             $table->string('status')->nullable(); //draft, approve

@@ -142,7 +142,7 @@
         </tr>
         <tr>
             <td>
-                <strong>Nomor Bukti</strong> : {{ $transaction->number }}<br>
+                <strong>No Transaksi</strong> : {{ $transaction->number }}<br>
                 <div class="line"></div>
             </td>
             <td>
@@ -157,7 +157,9 @@
         <thead>
             <tr>
                 <th>No.</th>
-                <th>Item Barang</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Color</th>
                 <th>Qty</th>
                 <th>Satuan</th>
             </tr>
@@ -166,7 +168,9 @@
             @foreach ($transactionDetails as $key => $transactionDetail )
             <tr>
                 <td>{{ $key+1 }}</td>
-                <td align="left">{{ $transactionDetail->item->code .'-'. $transactionDetail->item->name .'-'. $transactionDetail->ItemVariant->color }}</td>
+                <td align="left">{{ $transactionDetail->item->code }}</td>
+                <td align="left">{{ $transactionDetail->item->name }}</td>
+                <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
                 <td>{{ $transactionDetail->qty }}</td>
                 <td>{{ $transactionDetail->item->unit }}</td>
             </tr>

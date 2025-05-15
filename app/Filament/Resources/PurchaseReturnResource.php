@@ -31,7 +31,7 @@ class PurchaseReturnResource extends Resource
 
     protected static ?string $navigationGroup = 'Belanja';
 
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 13;
 
     public static function form(Form $form): Form
     {
@@ -79,7 +79,7 @@ class PurchaseReturnResource extends Resource
                             ->label('Buat')
                             ->submit('create')
                             ->color('primary')
-                            ->visible(fn () => request()->routeIs('filament.admin.resources.purchase-returns.create')),
+                            ->visible(fn ($livewire) => $livewire->record == null),
                         Forms\Components\Actions\Action::make('save')
                             ->label('Simpan')
                             ->submit('save')
@@ -141,7 +141,7 @@ class PurchaseReturnResource extends Resource
                                     url()->previous() ?? static::getResource()::getUrl()
                                 )
                             )
-                            ->visible(fn () => request()->routeIs('filament.admin.resources.purchase-returns.create'))
+                            ->visible(fn ($livewire) => $livewire->record == null)
                             ->color('gray'),
 
                     ])->columnSpanFull(),
@@ -169,10 +169,16 @@ class PurchaseReturnResource extends Resource
                     ->url(fn($record) => PurchaseReturnResource::getUrl('edit', ['record' => $record]))
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('date')
-                    ->label('Tanggal')
-                    ->dateTime('d F Y')
-                    ->sortable(),
+                Forms\Components\DatePicker::make('date')
+                        ->label('Tanggal')
+                        ->default(now())
+                        ->required()
+                        ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
+                        ->maxDate(today())
+                        ->validationMessages([
+                            'required' => 'Tanggal wajib diisi.',
+                            'max_date' => 'Tanggal tidak boleh lebih besar dari hari ini.',
+                        ]),
                 Tables\Columns\TextColumn::make('reference_number')
                     ->label('No SJ / Invoice')
                     ->searchable(),
@@ -183,7 +189,7 @@ class PurchaseReturnResource extends Resource
                     })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('pic_field')
-                    ->label('Diterima oleh'),
+                    ->label('Dikirim oleh'),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {

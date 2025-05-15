@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
-    <title>Bukti Pengembalian Barang ke Pemasok</title>
+    <title>Bukti Alokasi Barang ke Produksi</title>
     <style>
         body {
             font-family: Poppins, Helvetica, "sans-serif";
@@ -126,7 +126,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>BUKTI PENGEMBALIAN BARANG <br> {{ $setting->company_name }}</h1>
+        <h1>BUKTI Alokasi Barang ke Produksi <br> {{ $setting->company_name }}</h1>
 
         <!-- Informasi Header -->
         <table class="info-table">
@@ -135,9 +135,10 @@
             <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
             <div class="line"></div>
             </td>
-            <td width="50%">
-            <strong>Pemasok</strong> : {{ $transaction->supplier->name }}<br>
-            <div class="line"></div>
+
+            <td>
+                <strong>Project</strong> : {{ $transaction->reference_number }}<br>
+                <div class="line"></div>
             </td>
         </tr>
         <tr>
@@ -146,8 +147,8 @@
                 <div class="line"></div>
             </td>
             <td>
-                <strong>No Referensi</strong> : {{ $transaction->reference_number }}<br>
-                <div class="line"></div>
+                {{-- <strong>No Referensi</strong> : {{ $transaction->reference_number }}<br>
+                <div class="line"></div> --}}
             </td>
         </tr>
         </table>

@@ -33,4 +33,17 @@ class PrintController extends Controller
             'setting' => Setting::first()
         ]);
     }
+
+    public function printProductionAllocation(Transaction $transaction)
+    {
+        if($transaction->type != 'production_allocation') {
+            abort(404);
+        }
+
+        return view('prints.production-allocation', [
+            'transaction' => $transaction,
+            'transactionDetails' => $transaction->transactionDetails()->get(),
+            'setting' => Setting::first()
+        ]);
+    }
 }
