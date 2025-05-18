@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use App\Models\Item;
-use App\Models\ItemVariant;
 use App\Models\Project;
+use App\Models\ItemVariant;
 use App\Models\Transaction;
 use App\Services\StockService;
+use Illuminate\Database\Eloquent\Model;
 
 class ProductionAllocationService
 {
@@ -28,8 +29,8 @@ class ProductionAllocationService
                 throw new Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
             }
 
-            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'out');
-            $stockService->addStockHistoryItem($transaction, $transactionDetail, $beginStock);
+            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'minus');
+            $stockService->updateStockMutationForApprove($transaction, $transactionDetail);
         }
 
 
@@ -45,7 +46,13 @@ class ProductionAllocationService
         }
 
         $stockService = app(StockService::class);
-        $stockService->cancelStockHistoryItem($transaction);
+        $transactionDetails = $transaction->transactionDetails()->get();
+
+        foreach ($transactionDetails as $transactionDetail) {
+            $beginStock = $stockService->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
+            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'plus');
+            $stockService->updateStockMutationForCancelApprove($transaction, $transactionDetail);
+        }
 
         $transaction->update(['status' => 'draft']);
 
@@ -66,5 +73,18 @@ class ProductionAllocationService
         ]);
 
     }
+
+    public function addTransactionDetail(Model $transaction, array $data): void
+    {
+        $transaction->transactionDetails()
+            ->create($data + [
+                'price' => ItemVariant::find($data['item_variant_id'])?->price,
+                'type' => 'out'
+            ]);
+    }
+
+
+
+
 
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Item;
 use App\Models\Stock;
+use App\Models\StockMutation;
 use App\Models\TransactionDetail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -58,5 +59,11 @@ class ItemVariant extends Model
     public function stockHistories(): HasMany
     {
         return $this->hasMany(StockHistory::class);
+    }
+
+
+    public function stockMutations(): HasMany
+    {
+        return $this->hasMany(StockMutation::class);
     }
 }

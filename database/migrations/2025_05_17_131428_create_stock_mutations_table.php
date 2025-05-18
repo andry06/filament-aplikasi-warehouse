@@ -1,8 +1,7 @@
 <?php
 
-use App\Models\Warehouse;
 use App\Models\ItemVariant;
-use App\Models\TransactionDetail;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
@@ -14,16 +13,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stock_histories', function (Blueprint $table) {
+        Schema::create('stock_mutations', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(Warehouse::class)->nullable();
-            $table->foreignIdFor(TransactionDetail::class)->nullable();
             $table->foreignIdFor(ItemVariant::class)->nullable();
             $table->date('date')->nullable();
-            $table->decimal('begin_stock', 12, 2)->nullable();
-            $table->decimal('qty')->nullable();
-            $table->decimal('ending_stock', 12, 2)->nullable();
-            $table->string('movement_type')->nullable();
+            $table->decimal('begin_stock', 12, 2)->nullable()->default(0);
+            $table->decimal('qty_in', 12, 2)->nullable();
+            $table->decimal('qty_out', 12, 2)->nullable();
+            $table->decimal('ending_stock', 12, 2)->nullable()->default(0);
             $table->timestamps();
         });
     }
@@ -33,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('stock_histories');
+        Schema::dropIfExists('stock_mutations');
     }
 };

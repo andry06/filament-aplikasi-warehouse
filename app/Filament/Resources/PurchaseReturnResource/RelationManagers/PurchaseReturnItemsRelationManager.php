@@ -5,16 +5,15 @@ namespace App\Filament\Resources\PurchaseReturnResource\RelationManagers;
 use Filament\Forms;
 use App\Models\Item;
 use Filament\Tables;
-use App\Models\Stock;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItemVariant;
-use App\Models\Transaction;
 use App\Services\StockService;
 use App\Models\TransactionDetail;
-use App\Services\TransactionService;
+use App\Services\PurchaseReturnService;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -108,11 +107,13 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 })
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $warehouseId = $this->ownerRecord->warehouse_id;
-                                    $stockItem = Stock::where('warehouse_id', $warehouseId)
-                                        ->where('item_variant_id', $state)
-                                        ->first();
+                                    if(!$state || !$warehouseId){
+                                        return [];
+                                    }
+                                    $stockService = new StockService();
+                                    $stock = $stockService->getStock($state, $warehouseId);
 
-                                    $set('stock', $stockItem?->stock ?? 0);
+                                    $set('stock', $stock);
                                 })
                                 ->reactive()->searchable(),
                             Forms\Components\TextInput::make('unit')
@@ -120,6 +121,15 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 ->readOnly(),
                             Forms\Components\TextInput::make('stock')
                                 ->label('Stok Gudang')
+                                ->afterStateHydrated(function (TextInput $component, Get $get) {
+                                    $warehouseId = $this->ownerRecord->warehouse_id;
+                                    if (!$get('item_variant_id')){
+                                        return;
+                                    }
+                                    $stockService = new StockService();
+                                    $stock = $stockService->getStock($get('item_variant_id'), $warehouseId);
+                                    $component->state($stock);
+                                })
                                 ->disabled(),
                             Forms\Components\TextInput::make('qty')
                                 ->label('Jumlah')
@@ -213,16 +223,9 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
                             }
 
-                            $stockService = new StockService();
-                            $stock = $stockService->getStock($data['item_variant_id'], $this->ownerRecord?->warehouse_id);
-                            if ($data['qty'] > $stock) {
-                                throw new Exception('Stok tidak mencukupi.');
-                            }
+                            $purchaseReturnService = new PurchaseReturnService();
+                            $purchaseReturnService->addTransactionDetail($this->ownerRecord, $data);
 
-                            $this->ownerRecord->transactionDetails()
-                                ->create($data + [
-                                    'price' => ItemVariant::find($data['item_variant_id'])?->price
-                                ]);
                         } catch (\Exception $e) {
                             info($e);
                             Notification::make()

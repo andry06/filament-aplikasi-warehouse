@@ -137,7 +137,7 @@
             </td>
 
             <td>
-                <strong>Project</strong> : {{ $transaction->reference_number }}<br>
+                <strong>Project</strong> : {{ $transaction->project->name }}<br>
                 <div class="line"></div>
             </td>
         </tr>

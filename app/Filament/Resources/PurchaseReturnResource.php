@@ -31,7 +31,7 @@ class PurchaseReturnResource extends Resource
 
     protected static ?string $navigationGroup = 'Belanja';
 
-    protected static ?int $navigationSort = 13;
+    protected static ?int $navigationSort = 9;
 
     public static function form(Form $form): Form
     {
@@ -169,16 +169,10 @@ class PurchaseReturnResource extends Resource
                     ->url(fn($record) => PurchaseReturnResource::getUrl('edit', ['record' => $record]))
                     ->sortable()
                     ->searchable(),
-                Forms\Components\DatePicker::make('date')
-                        ->label('Tanggal')
-                        ->default(now())
-                        ->required()
-                        ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->maxDate(today())
-                        ->validationMessages([
-                            'required' => 'Tanggal wajib diisi.',
-                            'max_date' => 'Tanggal tidak boleh lebih besar dari hari ini.',
-                        ]),
+                Tables\Columns\TextColumn::make('date')
+                    ->label('Tanggal')
+                    ->dateTime('d F Y')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('reference_number')
                     ->label('No SJ / Invoice')
                     ->searchable(),

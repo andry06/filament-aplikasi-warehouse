@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use Filament\Forms;
 use Filament\Tables;
+use Filament\Forms\Get;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
 use Filament\Tables\Table;
@@ -13,24 +14,26 @@ use Filament\Resources\Resource;
 use Illuminate\Support\Facades\DB;
 use App\Services\TransactionService;
 use Filament\Notifications\Notification;
+use App\Services\ProductionReturnService;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\Transaction\ProductionReturn;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\ProductionAllocationResource\Pages;
-use App\Filament\Resources\ProductionAllocationResource\RelationManagers;
-use App\Services\ProductionAllocationService;
+use App\Filament\Resources\ProductionReturnResource\Pages;
+use App\Filament\Resources\ProductionReturnResource\RelationManagers;
 
-class ProductionAllocationResource extends Resource
+class ProductionReturnResource extends Resource
 {
     protected static ?string $model = Transaction::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-uturn-right';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-uturn-left';
 
-    protected static ?string $modelLabel = 'Alokasi Barang ke Produksi';
-    protected static ?string $navigationLabel = 'Alokasi Barang';
+    protected static ?string $modelLabel = 'Pengembalian Barang ke Gudang';
+    protected static ?string $navigationLabel = 'Pengembalian Barang';
 
     protected static ?string $navigationGroup = 'Produksi';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 11;
+
 
     public static function form(Form $form): Form
     {
@@ -70,7 +73,7 @@ class ProductionAllocationResource extends Resource
                         ->relationship(
                             name: 'project',
                             titleAttribute: 'name',
-                            modifyQueryUsing: fn (Builder $query) => $query->where('is_completed', false)->orderBy('name')
+                            modifyQueryUsing: fn (Builder $query) => $query->where('has_allocation', true)->where('is_completed', false)->orderBy('name')
                         )
                         ->createOptionForm([
                             Forms\Components\TextInput::make('name')
@@ -110,14 +113,14 @@ class ProductionAllocationResource extends Resource
                             ->action(function ($livewire) {
                                 try {
                                     DB::beginTransaction();
-                                    $productionAllocationService = app(ProductionAllocationService::class);
+                                    $productionReturnService = new ProductionReturnService();
 
                                     if ($livewire->record?->status == 'draft') {
-                                        $productionAllocationService->approve($livewire->record);
+                                        $productionReturnService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
 
-                                        $productionAllocationService->cancelApprove($livewire->record);
+                                        $productionReturnService->cancelApprove($livewire->record);
 
                                         $message = 'Status berhasil menjadi draft kembali';
                                     }
@@ -129,7 +132,7 @@ class ProductionAllocationResource extends Resource
                                         ->success()
                                         ->send();
 
-                                    return redirect()->route('filament.admin.resources.production-allocations.edit', [
+                                    return redirect()->route('filament.admin.resources.production-returns.edit', [
                                             'record' => $livewire->record->id,
                                         ]);
                                 } catch (\Exception $e) {
@@ -172,7 +175,6 @@ class ProductionAllocationResource extends Resource
             ]);
     }
 
-
     public static function table(Table $table): Table
     {
         return $table
@@ -182,7 +184,7 @@ class ProductionAllocationResource extends Resource
                     ->color('primary')
                     ->weight('bold')
                     ->wrap()
-                    ->url(fn($record) => ProductionAllocationResource::getUrl('edit', ['record' => $record]))
+                    ->url(fn($record) => ProductionReturnResource::getUrl('edit', ['record' => $record]))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('date')
@@ -212,12 +214,11 @@ class ProductionAllocationResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->recordUrl(null)
             ->filters([
                 //
             ])
             ->actions([
-                // Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -229,23 +230,22 @@ class ProductionAllocationResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationManagers\ProductionAllocationItemsRelationManager::class,
+            RelationManagers\ProductionReturnItemsRelationManager::class,
         ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListProductionAllocations::route('/'),
-            'create' => Pages\CreateProductionAllocation::route('/create'),
-            'edit' => Pages\EditProductionAllocation::route('/{record}/edit'),
+            'index' => Pages\ListProductionReturns::route('/'),
+            'create' => Pages\CreateProductionReturn::route('/create'),
+            'edit' => Pages\EditProductionReturn::route('/{record}/edit'),
         ];
     }
 
-
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('type', 'production_allocation');
+        return parent::getEloquentQuery()->where('type', 'production_return');
     }
 
 }

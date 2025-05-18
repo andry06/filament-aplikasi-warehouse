@@ -21,6 +21,7 @@ class ListGoodReceives extends ListRecords
 
     public function getTableQuery(): ?Builder
     {
+        info($this->tableFilters);
         return Transaction::select('transactions.*', 'suppliers.name as supplier_name')
             ->LeftJoin('suppliers', 'transactions.supplier_id', '=', 'suppliers.id')
             ->where('type', 'purchase_in');

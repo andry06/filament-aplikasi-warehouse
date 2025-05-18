@@ -5,18 +5,14 @@ namespace App\Models;
 use App\Models\Item;
 use App\Models\ItemVariant;
 use App\Models\Transaction;
-use App\Models\StockHistory;
+use App\Models\StockOpnameDetail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TransactionDetail extends Model
 {
-    protected $fillable = ['transaction_id', 'item_id', 'item_variant_id', 'qty', 'unit', 'price', 'note'];
-
-    protected $casts = [
-        'is_purchase_in' => 'boolean'
-    ];
+    protected $fillable = ['transaction_id', 'item_id', 'item_variant_id', 'qty', 'unit', 'price', 'note', 'type'];
 
     /**
      * Get the item that the transaction detail belongs to.
@@ -48,8 +44,8 @@ class TransactionDetail extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
-    public function stockHistory(): HasOne
+    public function stockOpnameDetail(): HasOne
     {
-        return $this->hasOne(StockHistory::class);
+        return $this->hasOne(StockOpnameDetail::class);
     }
 }

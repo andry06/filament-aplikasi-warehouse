@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Filament\Resources\ProductionAllocationResource\Pages;
+namespace App\Filament\Resources\ProductionReturnResource\Pages;
 
 use Filament\Actions;
 use App\Models\Transaction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\ProductionAllocationResource;
+use App\Filament\Resources\ProductionReturnResource;
 
-class ListProductionAllocations extends ListRecords
+class ListProductionReturns extends ListRecords
 {
-    protected static string $resource = ProductionAllocationResource::class;
+    protected static string $resource = ProductionReturnResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -23,6 +23,7 @@ class ListProductionAllocations extends ListRecords
     {
         return Transaction::select('transactions.*', 'projects.name as project_name')
             ->LeftJoin('projects', 'transactions.project_id', '=', 'projects.id')
-            ->where('type', 'production_allocation');
+            ->where('type', 'production_return');
     }
+
 }

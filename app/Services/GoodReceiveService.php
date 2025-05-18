@@ -22,8 +22,8 @@ class GoodReceiveService
         foreach ($transactionDetails as $transactionDetail) {
             $beginStock = $stockService->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
 
-            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'in');
-            $stockService->addStockHistoryItem($transaction, $transactionDetail, $beginStock);
+            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'plus');
+            $stockService->updateStockMutationForApprove($transaction, $transactionDetail);
         }
 
         $transaction->update(['status' => 'approve']);
@@ -36,7 +36,13 @@ class GoodReceiveService
         }
 
         $stockService = app(StockService::class);
-        $stockService->cancelStockHistoryItem($transaction);
+        $transactionDetails = $transaction->transactionDetails()->get();
+
+        foreach ($transactionDetails as $transactionDetail) {
+            $beginStock = $stockService->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
+            $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'minus');
+            $stockService->updateStockMutationForCancelApprove($transaction, $transactionDetail);
+        }
 
         $transaction->update(['status' => 'draft']);
 

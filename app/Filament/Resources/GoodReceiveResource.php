@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
-use App\Models\Setting;
 use App\Models\Supplier;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
@@ -14,9 +14,9 @@ use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\DB;
 use App\Services\GoodReceiveService;
+use App\Services\TransactionService;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
-use App\Services\TransactionService;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\GoodReceiveResource\Pages;
 use App\Filament\Resources\GoodReceiveResource\RelationManagers;
@@ -32,7 +32,7 @@ class GoodReceiveResource extends Resource
 
     protected static ?string $navigationGroup = 'Belanja';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 8;
 
     public static function form(Form $form): Form
     {
@@ -47,6 +47,15 @@ class GoodReceiveResource extends Resource
                         ->required(),
                     Forms\Components\DatePicker::make('date')
                         ->label('Tanggal')
+                        ->minDate(function () {
+                            $transaction = Transaction::where('type', 'stock_opname')->orderBy('date', 'desc')->first();
+                            if ($transaction == null) {
+                                return;
+                            }
+
+                            $minDate = Carbon::parse($transaction->date);
+                            return $minDate->addDay();
+                        })
                         ->default(now())
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
@@ -59,16 +68,12 @@ class GoodReceiveResource extends Resource
                         ->label('Gudang')
                         ->options(Warehouse::all()->pluck('name', 'id'))
                         ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->default(fn () => Warehouse::orderBy('id')->value('id')),
+                        ->default(fn () => Warehouse::first()->value('id')),
                     Forms\Components\Select::make('supplier_id')
                         ->label('Supplier')
-                        ->relationship(
-                            name: 'supplier',
-                            titleAttribute: 'name',
-                            modifyQueryUsing: fn (Builder $query) => $query->orderBy('name')
-                        )
+                        ->options(Supplier::all()->pluck('name', 'id'))
                         ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->searchable(['name']),
+                        ->searchable(),
                     Forms\Components\TextInput::make('reference_number')
                         ->label('No SJ / Invoice')
                         ->required()
@@ -219,7 +224,14 @@ class GoodReceiveResource extends Resource
             ])
             ->recordUrl(null)
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('supplier_id')
+                    ->label('Pemasok')
+                    ->options(Supplier::all()->pluck('name', 'id'))
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Gudang')
+                    ->options(Warehouse::all()->pluck('name', 'id'))
+                    ->searchable()
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),

@@ -244,14 +244,14 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
                     ->action(function (array $data): void {
-
                         try {
                             if ($this->ownerRecord->status == 'approve') {
                                 throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
                             }
 
-                            $this->ownerRecord->transactionDetails()
-                                ->create($data);
+                            $this->ownerRecord->transactionDetails()->create($data + [
+                                'type' => 'in'
+                            ]);
                         } catch (\Exception $e) {
                             Notification::make()
                                 ->title('Gagal')
@@ -259,7 +259,6 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->warning()
                                 ->send();
                         }
-
                     })
             ])
             ->actions([

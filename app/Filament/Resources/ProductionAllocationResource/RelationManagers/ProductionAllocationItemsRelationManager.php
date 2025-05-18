@@ -13,8 +13,10 @@ use Filament\Tables\Table;
 use App\Models\ItemVariant;
 use App\Services\StockService;
 use App\Models\TransactionDetail;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
+use App\Services\ProductionAllocationService;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Resources\RelationManagers\RelationManager;
 
@@ -105,7 +107,6 @@ class ProductionAllocationItemsRelationManager extends RelationManager
                                 })
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $warehouseId = $this->ownerRecord->warehouse_id;
-
                                     if(!$state || !$warehouseId){
                                         return [];
                                     }
@@ -120,13 +121,22 @@ class ProductionAllocationItemsRelationManager extends RelationManager
                                 ->readOnly(),
                             Forms\Components\TextInput::make('stock')
                                 ->label('Stok Gudang')
+                                ->afterStateHydrated(function (TextInput $component, Get $get) {
+                                    $warehouseId = $this->ownerRecord->warehouse_id;
+                                    if (! $get('item_variant_id')) {
+                                        return;
+                                    }
+                                    $stockService = new StockService();
+                                    $stock = $stockService->getStock($get('item_variant_id'), $warehouseId);
+                                    $component->state($stock);
+                                })
                                 ->disabled(),
                             Forms\Components\TextInput::make('qty')
                                 ->label('Jumlah')
                                 ->numeric()
                                 ->maxValue(fn (Get $get) => $get('stock')) // ← batas maksimal dari stock
                                 ->reactive()
-                                ->minValue(1)
+                                ->minValue(0.01)
                                 ->required()
                                 ->validationMessages([
                                     'required' => 'Jumlah wajib diisi.',
@@ -214,16 +224,9 @@ class ProductionAllocationItemsRelationManager extends RelationManager
                                 throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
                             }
 
-                            $stockService = new StockService();
-                            $stock = $stockService->getStock($data['item_variant_id'], $this->ownerRecord?->warehouse_id);
-                            if ($data['qty'] > $stock) {
-                                throw new Exception('Stok tidak mencukupi.');
-                            }
+                            $productionAllocationService = new ProductionAllocationService();
+                            $productionAllocationService->addTransactionDetail($this->ownerRecord, $data);
 
-                            $this->ownerRecord->transactionDetails()
-                                ->create($data + [
-                                    'price' => ItemVariant::find($data['item_variant_id'])?->price
-                                ]);
                         } catch (\Exception $e) {
                             info($e);
                             Notification::make()
