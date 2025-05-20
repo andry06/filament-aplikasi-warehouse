@@ -49,12 +49,7 @@ class GoodReceiveResource extends Resource
                         ->label('Tanggal')
                         ->minDate(function () {
                             $transaction = Transaction::where('type', 'stock_opname')->orderBy('date', 'desc')->first();
-                            if ($transaction == null) {
-                                return;
-                            }
-
-                            $minDate = Carbon::parse($transaction->date);
-                            return $minDate->addDay();
+                            return $transaction != null ? $transaction->date : null;
                         })
                         ->default(now())
                         ->required()
@@ -108,17 +103,17 @@ class GoodReceiveResource extends Resource
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
                                 try {
+                                    $transactionService = app(TransactionService::class);
+                                    if ($transactionService->isNotAllowedApprove($livewire->record)) {
+                                        throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
+                                    }
                                     $goodReceiveService = app(GoodReceiveService::class);
-
                                     DB::beginTransaction();
 
                                     if ($livewire->record?->status == 'draft') {
                                         $goodReceiveService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
-                                        if ($livewire->record->purchase_item_used) {
-                                            throw new \Exception('Barang penerimaan ini sudah ada pengeluaran.');
-                                        }
 
                                         $goodReceiveService->cancelApprove($livewire->record);
 
@@ -139,7 +134,7 @@ class GoodReceiveResource extends Resource
                                     info($e);
                                     DB::rollback();
                                     Notification::make()
-                                        ->title('Gagal mengubah status')
+                                        ->title('Cancel Approve gagal.')
                                         ->body($e->getMessage())
                                         ->warning()
                                         ->send();
@@ -223,6 +218,7 @@ class GoodReceiveResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordUrl(null)
+            ->defaultSort('number', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('supplier_id')
                     ->label('Pemasok')

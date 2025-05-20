@@ -14,7 +14,7 @@ class CreateStockOpname extends CreateRecord
 {
     protected static string $resource = StockOpnameResource::class;
 
-        protected function getFormActions(): array
+    protected function getFormActions(): array
     {
         return [];
     }

@@ -46,6 +46,10 @@ class ProductionAllocationResource extends Resource
                     Forms\Components\DatePicker::make('date')
                         ->label('Tanggal')
                         ->default(now())
+                        ->minDate(function () {
+                            $transaction = Transaction::where('type', 'stock_opname')->orderBy('date', 'desc')->first();
+                            return $transaction != null ? $transaction->date : null;
+                        })
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->maxDate(today())
@@ -109,6 +113,10 @@ class ProductionAllocationResource extends Resource
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
                                 try {
+                                    $transactionService = app(TransactionService::class);
+                                    if ($transactionService->isNotAllowedApprove($livewire->record)) {
+                                        throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
+                                    }
                                     DB::beginTransaction();
                                     $productionAllocationService = app(ProductionAllocationService::class);
 
@@ -116,9 +124,7 @@ class ProductionAllocationResource extends Resource
                                         $productionAllocationService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
-
                                         $productionAllocationService->cancelApprove($livewire->record);
-
                                         $message = 'Status berhasil menjadi draft kembali';
                                     }
 
@@ -130,10 +136,10 @@ class ProductionAllocationResource extends Resource
                                         ->send();
 
                                     return redirect()->route('filament.admin.resources.production-allocations.edit', [
-                                            'record' => $livewire->record->id,
-                                        ]);
+                                        'record' => $livewire->record->id,
+                                    ]);
                                 } catch (\Exception $e) {
-                                    info($e);
+                                    // info($e);
                                     DB::rollback();
                                     Notification::make()
                                         ->title('Gagal mengubah status')
@@ -213,8 +219,20 @@ class ProductionAllocationResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordUrl(null)
+            ->defaultSort('number', 'desc')
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Gudang')
+                    ->options(Warehouse::all()->pluck('name', 'id'))
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('project_id')
+                    ->label('Nama Project')
+                    ->relationship(
+                        name: 'project',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->where('is_completed', false)->orderBy('name')
+                    )
+                    ->searchable(['name'])
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),

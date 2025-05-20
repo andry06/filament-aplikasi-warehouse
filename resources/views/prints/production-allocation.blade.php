@@ -126,24 +126,23 @@
 </head>
 <body>
     <div class="container">
-        <h1>BUKTI Alokasi Barang ke Produksi <br> {{ $setting->company_name }}</h1>
+        <h1>Bukti Alokasi Barang ke Produksi <br> {{ $setting->company_name }}</h1>
 
         <!-- Informasi Header -->
         <table class="info-table">
         <tr>
-            <td width="50%">
-            <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
-            <div class="line"></div>
+            <td>
+                <strong>No Transaksi</strong> : {{ $transaction->number }}<br>
+                <div class="line"></div>
             </td>
-
             <td>
                 <strong>Project</strong> : {{ $transaction->project->name }}<br>
                 <div class="line"></div>
             </td>
         </tr>
         <tr>
-            <td>
-                <strong>No Transaksi</strong> : {{ $transaction->number }}<br>
+            <td width="50%">
+                <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
                 <div class="line"></div>
             </td>
             <td>

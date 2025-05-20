@@ -10,8 +10,11 @@ use Filament\Tables\Table;
 use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
+use Illuminate\Support\Facades\DB;
+use App\Services\StockOpnameService;
 use App\Services\TransactionService;
 use App\Models\Transaction\StockOpname;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\StockOpnameResource\Pages;
@@ -45,11 +48,16 @@ class StockOpnameResource extends Resource
                         ->label('Tanggal')
                         ->default(now())
                         ->required()
-                        ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
+                        ->disabled(fn ($livewire) => $livewire->record != null)
                         ->maxDate(today())
+                        ->minDate(function () {
+                            $transaction = Transaction::orderBy('date', 'desc')->first();
+                            return $transaction ? $transaction->date : null;
+                        })
                         ->validationMessages([
                             'required' => 'Tanggal wajib diisi.',
                             'max_date' => 'Tanggal tidak boleh lebih besar dari hari ini.',
+                            'min_date' => 'Tanggal tidak boleh kurang dari tanggal terakhir transaksi.',
                         ]),
                     Forms\Components\Select::make('warehouse_id')
                         ->label('Gudang')
@@ -66,12 +74,18 @@ class StockOpnameResource extends Resource
                     Forms\Components\TextInput::make('note')
                         ->label('Catatan')
                         ->columnSpanFull(),
+                    Forms\Components\Placeholder::make('info_create_disabled')
+                        ->label('')
+                        ->content('⚠ Tidak dapat membuat Stock Opname baru karena masih ada transaksi lain yang berstatus draft, silakan di selesaikan terlebih dahulu dan di approve.')
+                        ->visible(fn ($livewire) => $livewire->record == null && app(StockOpnameService::class)->isNotAllowedCreate())
+                        ->columnSpanFull(),
                     Forms\Components\Actions::make([
                         Forms\Components\Actions\Action::make('create')
                             ->label('Buat')
                             ->submit('create')
                             ->color('primary')
-                            ->visible(fn ($livewire) => $livewire->record == null),
+                            ->visible(fn ($livewire) => $livewire->record == null)
+                            ->disabled(fn () => app(StockOpnameService::class)->isNotAllowedCreate()),
                         Forms\Components\Actions\Action::make('save')
                             ->label('Simpan')
                             ->submit('save')
@@ -83,39 +97,39 @@ class StockOpnameResource extends Resource
                             ->requiresConfirmation()
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
-                                // try {
-                                //     DB::beginTransaction();
-                                //     $productionAllocationService = app(ProductionAllocationService::class);
+                                try {
+                                    DB::beginTransaction();
+                                    $stockOpnameService = app(StockOpnameService::class);
 
-                                //     if ($livewire->record?->status == 'draft') {
-                                //         $productionAllocationService->approve($livewire->record);
-                                //         $message = 'Status berhasil diapprove';
-                                //     } else {
+                                    if ($livewire->record?->status == 'draft') {
+                                        $stockOpnameService->approve($livewire->record);
+                                        $message = 'Status berhasil diapprove';
+                                    } else {
 
-                                //         $productionAllocationService->cancelApprove($livewire->record);
+                                        $stockOpnameService->cancelApprove($livewire->record);
 
-                                //         $message = 'Status berhasil menjadi draft kembali';
-                                //     }
+                                        $message = 'Status berhasil menjadi draft kembali';
+                                    }
 
-                                //     DB::commit();
+                                    DB::commit();
 
-                                //     Notification::make()
-                                //         ->title($message)
-                                //         ->success()
-                                //         ->send();
+                                    Notification::make()
+                                        ->title($message)
+                                        ->success()
+                                        ->send();
 
-                                //     return redirect()->route('filament.admin.resources.production-allocations.edit', [
-                                //             'record' => $livewire->record->id,
-                                //         ]);
-                                // } catch (\Exception $e) {
-                                //     info($e);
-                                //     DB::rollback();
-                                //     Notification::make()
-                                //         ->title('Gagal mengubah status')
-                                //         ->body($e->getMessage())
-                                //         ->warning()
-                                //         ->send();
-                                // }
+                                    return redirect()->route('filament.admin.resources.stock-opnames.edit', [
+                                            'record' => $livewire->record->id,
+                                        ]);
+                                } catch (\Exception $e) {
+                                    info($e);
+                                    DB::rollback();
+                                    Notification::make()
+                                        ->title('Gagal mengubah status')
+                                        ->body($e->getMessage())
+                                        ->warning()
+                                        ->send();
+                                }
                             }),
                         Forms\Components\Actions\Action::make('print')
                             ->label('Cetak')
@@ -123,7 +137,7 @@ class StockOpnameResource extends Resource
                             ->extraAttributes([
                                 'target' => '_blank'
                             ])
-                            ->url(fn ($livewire) => route('print.production-allocations', $livewire->record?->id))
+                            ->url(fn ($livewire) => route('print.stock-opnames', $livewire->record?->id))
                             ->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')
@@ -136,7 +150,6 @@ class StockOpnameResource extends Resource
                             ->color('gray'),
 
                     ])->columnSpanFull(),
-
                 ])
                 ->columns([
                     'sm' => 2,
@@ -151,13 +164,45 @@ class StockOpnameResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('number')
+                    ->label('No Transaksi')
+                    ->color('primary')
+                    ->weight('bold')
+                    ->wrap()
+                    ->url(fn($record) => StockOpnameResource::getUrl('edit', ['record' => $record]))
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('date')
+                    ->label('Tanggal')
+                    ->dateTime('d F Y')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('pic_field')
+                    ->label('PIC Pelaksana'),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'warning',
+                        'approve' => 'success',
+                    })
+                    ->formatStateUsing(fn (string $state) => ucfirst($state)),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Dibuat')
+                    ->dateTime('d F Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Diperbarui')
+                    ->dateTime('d F Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('number', 'desc')
+            ->recordUrl(null)
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -186,4 +231,7 @@ class StockOpnameResource extends Resource
     {
         return parent::getEloquentQuery()->where('type', 'stock_opname');
     }
+
+
+
 }

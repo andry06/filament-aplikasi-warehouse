@@ -131,18 +131,18 @@
         <!-- Informasi Header -->
         <table class="info-table">
         <tr>
-            <td width="50%">
-            <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
-            <div class="line"></div>
+            <td>
+                <strong>No Transaksi</strong> : {{ $transaction->number }}<br>
+                <div class="line"></div>
             </td>
             <td width="50%">
-            <strong>Pemasok</strong> : {{ $transaction->supplier->name }}<br>
-            <div class="line"></div>
+                <div class="line"></div>
+                <strong>Pemasok</strong> : {{ $transaction->supplier->name }}<br>
             </td>
         </tr>
         <tr>
-            <td>
-                <strong>No Transaksi</strong> : {{ $transaction->number }}<br>
+            <td width="50%">
+                <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
                 <div class="line"></div>
             </td>
             <td>

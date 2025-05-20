@@ -52,6 +52,10 @@ class ProductionReturnResource extends Resource
                         ->required()
                         ->readOnly(fn ($livewire) => $livewire->record?->status == 'approve')
                         ->maxDate(today())
+                        ->minDate(function () {
+                            $transaction = Transaction::where('type', 'stock_opname')->orderBy('date', 'desc')->first();
+                            return $transaction != null ? $transaction->date : null;
+                        })
                         ->validationMessages([
                             'required' => 'Tanggal wajib diisi.',
                             'max_date' => 'Tanggal tidak boleh lebih besar dari hari ini.',
@@ -112,31 +116,29 @@ class ProductionReturnResource extends Resource
                             ->visible(fn ($livewire) => $livewire->record != null)
                             ->action(function ($livewire) {
                                 try {
-                                    DB::beginTransaction();
+                                    $transactionService = app(TransactionService::class);
+                                    if ($transactionService->isNotAllowedApprove($livewire->record)) {
+                                        throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
+                                    }
                                     $productionReturnService = new ProductionReturnService();
-
+                                    DB::beginTransaction();
                                     if ($livewire->record?->status == 'draft') {
                                         $productionReturnService->approve($livewire->record);
                                         $message = 'Status berhasil diapprove';
                                     } else {
-
                                         $productionReturnService->cancelApprove($livewire->record);
-
                                         $message = 'Status berhasil menjadi draft kembali';
                                     }
-
                                     DB::commit();
-
                                     Notification::make()
                                         ->title($message)
                                         ->success()
                                         ->send();
-
                                     return redirect()->route('filament.admin.resources.production-returns.edit', [
                                             'record' => $livewire->record->id,
                                         ]);
                                 } catch (\Exception $e) {
-                                    info($e);
+                                    // info($e);
                                     DB::rollback();
                                     Notification::make()
                                         ->title('Gagal mengubah status')
@@ -151,7 +153,7 @@ class ProductionReturnResource extends Resource
                             ->extraAttributes([
                                 'target' => '_blank'
                             ])
-                            ->url(fn ($livewire) => route('print.production-allocations', $livewire->record?->id))
+                            ->url(fn ($livewire) => route('print.production-returns', $livewire->record?->id))
                             ->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')
@@ -214,11 +216,13 @@ class ProductionReturnResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->recordUrl(null)
+            ->defaultSort('number', 'desc')
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

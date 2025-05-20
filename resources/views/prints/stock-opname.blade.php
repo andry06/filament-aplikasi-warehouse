@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
-    <title>Bukti Penerimaan Barang</title>
+    <title>Bukti Stok Opname Barang</title>
     <style>
         body {
             font-family: Poppins, Helvetica, "sans-serif";
@@ -87,10 +87,6 @@
             text-align: center;
         }
 
-        .bottom-signature {
-            border-bottom: 1px dotted #000; width: 100px; margin: 0 auto;
-        }
-
         @media print {
         body {
             margin: 0;
@@ -130,7 +126,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>BUKTI PENERIMAAN BARANG <br> {{ $setting->company_name }}</h1>
+        <h1>Bukti Stok Opname Barang <br> {{ $setting->company_name }}</h1>
 
         <!-- Informasi Header -->
         <table class="info-table">
@@ -140,46 +136,36 @@
                 <div class="line"></div>
             </td>
             <td width="50%">
-                <strong>Pemasok</strong> : {{ $transaction->supplier->name }}<br>
-                <div class="line"></div>
-            </td>
-        </tr>
-        <tr>
-            <td width="50%">
-                <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
-                <div class="line"></div>
-            </td>
-            <td>
-                <strong>No SJ / Invoice</strong> : {{ $transaction->reference_number }}<br>
-                <div class="line"></div>
+            <strong>Tanggal</strong> : {{ $transaction->date->format('d F Y') }}<br>
+            <div class="line"></div>
             </td>
         </tr>
         </table>
 
         <!-- Tabel Barang -->
         <table class="item-table">
-        <thead>
-            <tr>
-                <th width="5%">No.</th>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Color</th>
-                <th width="10%">Qty</th>
-                <th>Satuan</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($transactionDetails as $key => $transactionDetail )
-            <tr>
-                <td>{{ $key+1 }}</td>
-                <td align="left">{{ $transactionDetail->item->code }}</td>
-                <td align="left">{{ $transactionDetail->item->name }}</td>
-                <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
-                <td style="text-align: right;">{{ trimDecimalZero($transactionDetail->qty) }}</td>
-                <td>{{ $transactionDetail->item->unit }}</td>
-            </tr>
-            @endforeach
-        </tbody>
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Color</th>
+                    <th>Qty</th>
+                    <th>Satuan</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($transactionDetails as $key => $transactionDetail )
+                <tr>
+                    <td>{{ $key+1 }}</td>
+                    <td align="left">{{ $transactionDetail->item->code }}</td>
+                    <td align="left">{{ $transactionDetail->item->name }}</td>
+                    <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
+                    <td>{{ $transactionDetail->qty }}</td>
+                    <td>{{ $transactionDetail->item->unit }}</td>
+                </tr>
+                @endforeach
+            </tbody>
         </table>
         <!-- Catatan -->
         <div class="note">
@@ -195,9 +181,9 @@
             <td>Mengetahui</td>
         </tr>
         <tr>
-            <td><div class="bottom-signature"></div></td>
-            <td align="center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
-            <td><div class="bottom-signature"></div></td>
+            <td>_______________________</td>
+            <td>_______________________</td>
+            <td>_______________________</td>
         </tr>
         </table>
     </div>

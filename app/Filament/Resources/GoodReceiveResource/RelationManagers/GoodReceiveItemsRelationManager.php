@@ -62,22 +62,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                         ->schema([
                             Forms\Components\Select::make('item_id')
                                 ->label('Barang')
-                                ->options(function (Get $get, $state) {
-                                    $category = $get('category');
-                                    if (!$category) {
-                                        return [];
-                                    }
-
-                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id')->toArray();
-
-                                    return Item::selectRaw("CONCAT(code, ' - ', name) as value, id")
-                                            ->where('category', $category)
-                                            ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds) {
-                                                $query->whereNotIn('id', $itemVariantIds);
-                                            })
-                                            ->pluck('value', 'id');
-                                })
+                                ->options(fn (Get $get) => $this->getItemOptions($get))
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $set('item_variant_id', null);
                                     $set('unit', Item::find($state)?->unit);
@@ -86,19 +71,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->searchable(),
                             Forms\Components\Select::make('item_variant_id')
                                 ->label('Warna')
-                                ->options(function (Get $get, $state) {
-                                    $itemId = $get('item_id');
-                                    if (!$itemId) {
-                                        return [];
-                                    }
-
-                                    $itemVariant = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id');
-
-                                    return ItemVariant::where('item_id', $itemId)
-                                            ->whereNotIn('id', $itemVariant)
-                                            ->pluck('color', 'id');
-                                })
+                                ->options(fn (Get $get, $state) => $this->getItemVariantOptions($get, $state))
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $set('price', ItemVariant::find($state)?->price);
                                 })
@@ -108,7 +81,6 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->label('Satuan')
                                 ->readOnly(),
                             Forms\Components\TextInput::make('price')
-                                // ->mask(RawJs::make('$money($input)'))
                                 ->stripCharacters(',')
                                 ->label('Harga')
                                 ->afterStateUpdated(function (Set $set, $state, Get $get) {
@@ -121,30 +93,10 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->prefix('Rp')
                                 ->suffixAction(
                                     Action::make('refreshPrice')
+                                        ->label('Simpan ke Master Barang')
                                         ->icon('heroicon-m-document-arrow-up')
                                         ->tooltip('Simpan harga ke master barang')
-                                        ->action(function (Set $set, Get $get) {
-
-                                            if (! $get('item_variant_id')) {
-                                                Notification::make()
-                                                    ->title('Gagal item belum dipilih.')
-                                                    ->danger()
-                                                    ->send();
-                                                return;
-                                            }
-
-                                            $itemVariant = ItemVariant::find($get('item_variant_id'));
-
-                                            $itemVariant->update([
-                                                'price' => $get('price'),
-                                            ]);
-
-                                            Notification::make()
-                                            ->title('Berhasil memperbarui harga master barang.')
-                                            ->success()
-                                            ->send();
-
-                                        })
+                                        ->action(fn (Get $get) => $this->refreshItemPrice($get))
                                 )
                                 ->numeric(),
                             Forms\Components\TextInput::make('qty')
@@ -152,6 +104,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->numeric()
                                 ->minValue(1)
                                 ->required()
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->afterStateUpdated(function (Set $set, $state, Get $get) {
                                     if (!$get('price')) {
                                         return [];
@@ -165,6 +118,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ]),
                             Forms\Components\TextInput::make('total_price')
                                 ->label('Total Harga')
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->prefix('Rp')
                                 ->disabled()
                                 ->numeric(),
@@ -195,20 +149,24 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->label('Color')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('qty')
-                    ->label('Jumlah')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('unit')
                     ->label('Unit')
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('qty')
+                    ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                    ->label('Jumlah')
+                    ->alignRight()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah($state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->label('Total Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah((int) $state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('note')
                     ->label('Catatan')
@@ -291,5 +249,71 @@ class GoodReceiveItemsRelationManager extends RelationManager
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
     }
 
+    protected function getItemOptions(Get $get): array
+    {
+        $category = $get('category');
+        $itemVariantId = $get('item_variant_id');
+        if (!$category) {
+            return [];
+        }
 
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+
+        // Hapus item aktif dari daftar blacklist agar tetap muncul di options
+        if ($itemVariantId) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $itemVariantId);
+        }
+
+        return Item::selectRaw("CONCAT(code, ' - ', name) as value, id")
+                ->where('category', $category)
+                ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds) {
+                    $query->whereNotIn('id', $itemVariantIds);
+                })
+                ->pluck('value', 'id')
+                ->toArray();
+    }
+
+    protected function getItemVariantOptions(Get $get, ?string $state): array
+    {
+        $itemId = $get('item_id');
+        if (!$itemId) {
+            return [];
+        }
+
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')
+            ->toArray();
+
+        if ($state) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
+        }
+
+        return ItemVariant::where('item_id', $itemId)
+                ->whereNotIn('id', $itemVariantIds)
+                ->pluck('color', 'id')
+                ->toArray();
+    }
+
+    protected function refreshItemPrice(Get $get): void
+    {
+        if (! $get('item_variant_id')) {
+            Notification::make()
+                ->title('Gagal item belum dipilih.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $itemVariant = ItemVariant::find($get('item_variant_id'));
+
+        $itemVariant->update([
+            'price' => $get('price'),
+        ]);
+
+        Notification::make()
+            ->title('Berhasil memperbarui harga master barang.')
+            ->success()
+            ->send();
+    }
 }

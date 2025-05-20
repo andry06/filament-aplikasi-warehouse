@@ -5,10 +5,11 @@ namespace App\Services;
 use Carbon\Carbon;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
+use Illuminate\Database\Eloquent\Model;
 
 class TransactionService
 {
-    public static function generateGoodReceiveNumber()
+    public static function generateGoodReceiveNumber(): array
     {
         $date = Carbon::parse(today());
         $transaction = Transaction::whereYear('created_at', $date->year)
@@ -32,7 +33,7 @@ class TransactionService
         ];
     }
 
-    public static function generatePurchaseReturnNumber()
+    public static function generatePurchaseReturnNumber(): array
     {
         $date = Carbon::parse(today());
         $transaction = Transaction::whereYear('created_at', $date->year)
@@ -56,7 +57,7 @@ class TransactionService
         ];
     }
 
-    public static function generateProductionAllocationNumber()
+    public static function generateProductionAllocationNumber(): array
     {
         $date = Carbon::parse(today());
         $transaction = Transaction::whereYear('created_at', $date->year)
@@ -80,7 +81,7 @@ class TransactionService
         ];
     }
 
-    public static function generateProductionReturnNumber()
+    public static function generateProductionReturnNumber(): array
     {
         $date = Carbon::parse(today());
         $transaction = Transaction::whereYear('created_at', $date->year)
@@ -104,7 +105,7 @@ class TransactionService
         ];
     }
 
-    public static function generateStockOpnameNumber()
+    public static function generateStockOpnameNumber(): array
     {
         $date = Carbon::parse(today());
         $transaction = Transaction::whereYear('created_at', $date->year)
@@ -126,5 +127,18 @@ class TransactionService
             'counter' => $counter,
             'number' => "{$prefix}" . str_pad($counter, 3, '0', STR_PAD_LEFT) . "/CRJ/{$romanMonths[$date->month]}/{$date->year}",
         ];
+    }
+
+    public static function isNotAllowedApprove(Model $transaction): bool
+    {
+        $stockOpname = Transaction::where('type', 'stock_opname')
+            ->where('warehouse_id', $transaction->warehouse_id)
+            ->orderBy('date', 'desc')
+            ->first();
+
+        $transactionTime = Carbon::parse($transaction->date);
+        $stockOpnameTime = Carbon::parse($stockOpname->date);
+
+        return $transactionTime->lt($stockOpnameTime);
     }
 }

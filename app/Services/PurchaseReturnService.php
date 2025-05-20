@@ -13,7 +13,7 @@ class PurchaseReturnService
     public function approve(Transaction $transaction): void
     {
         if ($transaction->status != 'draft') {
-            throw new Exception('Status bukan "draft", tidak bisa diapprove.');
+            throw new \Exception('Status bukan "draft", tidak bisa diapprove.');
         }
 
         $stockService = app(StockService::class);
@@ -25,7 +25,7 @@ class PurchaseReturnService
             if($transactionDetail->qty > $beginStock) {
                 $item = Item::find($transactionDetail->item_id);
                 $itemVariant = ItemVariant::find($transactionDetail->item_variant_id);
-                throw new Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
+                throw new \Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
             }
 
             $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'minus');
@@ -39,7 +39,7 @@ class PurchaseReturnService
     public function cancelApprove(Transaction $transaction): void
     {
         if ($transaction->status != 'approve') {
-            throw new Exception('Status bukan "approve", tidak bisa dibatalkan.');
+            throw new \Exception('Status bukan "approve", tidak bisa dibatalkan.');
         }
 
         $stockService = app(StockService::class);
