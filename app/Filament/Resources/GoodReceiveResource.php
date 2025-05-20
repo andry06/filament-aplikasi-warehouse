@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\Supplier;
@@ -12,10 +11,7 @@ use Filament\Tables\Table;
 use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
-use Illuminate\Support\Facades\DB;
-use App\Services\GoodReceiveService;
 use App\Services\TransactionService;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\GoodReceiveResource\Pages;
@@ -101,54 +97,15 @@ class GoodReceiveResource extends Resource
                             ->color(fn ($livewire) => $livewire->record?->status == 'draft' ? 'success' : 'warning')
                             ->requiresConfirmation()
                             ->visible(fn ($livewire) => $livewire->record != null)
-                            ->action(function ($livewire) {
-                                try {
-                                    $transactionService = app(TransactionService::class);
-                                    if ($transactionService->isNotAllowedApprove($livewire->record)) {
-                                        throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
-                                    }
-                                    $goodReceiveService = app(GoodReceiveService::class);
-                                    DB::beginTransaction();
-
-                                    if ($livewire->record?->status == 'draft') {
-                                        $goodReceiveService->approve($livewire->record);
-                                        $message = 'Status berhasil diapprove';
-                                    } else {
-
-                                        $goodReceiveService->cancelApprove($livewire->record);
-
-                                        $message = 'Status berhasil menjadi draft kembali';
-                                    }
-
-                                    DB::commit();
-
-                                    Notification::make()
-                                        ->title($message)
-                                        ->success()
-                                        ->send();
-
-                                    return redirect()->route('filament.admin.resources.good-receives.edit', [
-                                            'record' => $livewire->record->id,
-                                        ]);
-                                } catch (\Exception $e) {
-                                    info($e);
-                                    DB::rollback();
-                                    Notification::make()
-                                        ->title('Cancel Approve gagal.')
-                                        ->body($e->getMessage())
-                                        ->warning()
-                                        ->send();
-                                }
-                            }),
+                            ->action(fn ($livewire) => $livewire->toggleApprove()),
                         Forms\Components\Actions\Action::make('print')
                             ->label('Cetak')
                             ->color('primary')
                             ->extraAttributes([
                                 'target' => '_blank'
                             ])
-                            ->url(function ($livewire) {
-                                return route('print.good-receives', $livewire->record?->id);
-                            })->visible(fn ($livewire) => $livewire->record != null),
+                            ->url(fn ($livewire)=> route('print.good-receives', $livewire->record?->id))
+                            ->visible(fn ($livewire) => $livewire->record != null),
                         Forms\Components\Actions\Action::make('cancel')
                             ->label('Batal')
                             ->alpineClickHandler(
@@ -261,6 +218,8 @@ class GoodReceiveResource extends Resource
     {
         return parent::getEloquentQuery()->where('type', 'purchase_in');
     }
+
+
 
 }
 

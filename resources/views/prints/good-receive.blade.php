@@ -172,9 +172,9 @@
             @foreach ($transactionDetails as $key => $transactionDetail )
             <tr>
                 <td>{{ $key+1 }}</td>
-                <td align="left">{{ $transactionDetail->item->code }}</td>
-                <td align="left">{{ $transactionDetail->item->name }}</td>
-                <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
+                <td style="text-align: left;">{{ $transactionDetail->item->code }}</td>
+                <td style="text-align: left;">{{ $transactionDetail->item->name }}</td>
+                <td style="text-align: left;">{{ $transactionDetail->ItemVariant->color }}</td>
                 <td style="text-align: right;">{{ trimDecimalZero($transactionDetail->qty) }}</td>
                 <td>{{ $transactionDetail->item->unit }}</td>
             </tr>

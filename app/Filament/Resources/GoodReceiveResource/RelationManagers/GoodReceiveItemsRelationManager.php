@@ -201,23 +201,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
-                    ->action(function (array $data): void {
-                        try {
-                            if ($this->ownerRecord->status == 'approve') {
-                                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
-                            }
-
-                            $this->ownerRecord->transactionDetails()->create($data + [
-                                'type' => 'in'
-                            ]);
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Gagal')
-                                ->body($e->getMessage())
-                                ->warning()
-                                ->send();
-                        }
-                    })
+                    ->action(fn (array $data) => $this->handleCreateBarang($data))
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -316,4 +300,24 @@ class GoodReceiveItemsRelationManager extends RelationManager
             ->success()
             ->send();
     }
+
+    public function handleCreateBarang(array $data): void
+{
+    try {
+        if ($this->ownerRecord->status === 'approve') {
+            throw new \Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+        }
+
+        $this->ownerRecord->transactionDetails()->create($data + [
+            'type' => 'in'
+        ]);
+    } catch (\Exception $e) {
+        \Filament\Notifications\Notification::make()
+            ->title('Gagal')
+            ->body($e->getMessage())
+            ->warning()
+            ->send();
+    }
+}
+
 }
