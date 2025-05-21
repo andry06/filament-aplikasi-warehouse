@@ -61,25 +61,7 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                         ->schema([
                             Forms\Components\Select::make('item_id')
                                 ->label('Barang')
-                                ->options(function (Get $get, $state) {
-                                    $category = $get('category');
-                                    if (!$category) {
-                                        return [];
-                                    }
-
-                                    $warehouseId = $this->ownerRecord->warehouse_id;
-                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id')->toArray();
-
-                                    return Item::selectRaw("CONCAT(code, ' - ', name) as value, id")
-                                        ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds, $warehouseId) {
-                                            $query->whereNotIn('id', $itemVariantIds)
-                                                ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
-                                                    $query->where('warehouse_id', $warehouseId);
-                                                });
-                                        })->where('category', $category)
-                                        ->pluck('value', 'id');
-                                })
+                                ->options(fn (Get $get) => $this->getItemOptions($get))
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $set('item_variant_id', null);
                                     $set('qty', null);
@@ -89,31 +71,15 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                 ->searchable(),
                             Forms\Components\Select::make('item_variant_id')
                                 ->label('Warna')
-                                ->options(function (Get $get, $state) {
-                                    $itemId = $get('item_id');
-                                    if (!$itemId) {
-                                        return [];
-                                    }
-
-                                    $warehouseId = $this->ownerRecord->warehouse_id;
-                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id')->toArray();
-
-                                    return ItemVariant::whereNotIn('id', $itemVariantIds)
-                                                ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
-                                                    $query->where('warehouse_id', $warehouseId);
-                                            })->where('item_id', $itemId)
-                                            ->pluck('color', 'id');
-                                })
+                                ->options(fn (Get $get, $state) => $this->getItemVariantOptions($get, $state))
                                 ->afterStateUpdated(function (Set $set, $state) {
-                                    $warehouseId = $this->ownerRecord->warehouse_id;
-                                    if(!$state || !$warehouseId){
-                                        return [];
+                                    if (!$state) {
+                                        $set('stock', null);
+                                        return;
                                     }
                                     $stockService = new StockService();
-                                    $stock = $stockService->getStock($state, $warehouseId);
-
-                                    $set('stock', $stock);
+                                    $stock = $stockService->getStock($state, $this->ownerRecord->warehouse_id);
+                                    $set('stock', trimDecimalZero($stock));
                                 })
                                 ->reactive()->searchable(),
                             Forms\Components\TextInput::make('unit')
@@ -128,13 +94,15 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                                     }
                                     $stockService = new StockService();
                                     $stock = $stockService->getStock($get('item_variant_id'), $warehouseId);
-                                    $component->state($stock);
+                                    $component->state(trimDecimalZero($stock));
                                 })
+                                ->reactive()
                                 ->disabled(),
                             Forms\Components\TextInput::make('qty')
                                 ->label('Jumlah')
                                 ->numeric()
-                                ->maxValue(fn (Get $get) => $get('stock')) // ← batas maksimal dari stock
+                                ->maxValue(fn (Get $get) => $get('stock'))
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->reactive()
                                 ->minValue(1)
                                 ->required()
@@ -171,6 +139,8 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('qty')
+                    ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                    ->alignRight()
                     ->label('Jumlah')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('unit')
@@ -178,11 +148,13 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah($state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->label('Total Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah((int) $state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('note')
                     ->label('Catatan')
@@ -217,25 +189,7 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
-                    ->action(function (array $data): void {
-                        try {
-                            if ($this->ownerRecord->status == 'approve') {
-                                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
-                            }
-
-                            $purchaseReturnService = new PurchaseReturnService();
-                            $purchaseReturnService->addTransactionDetail($this->ownerRecord, $data);
-
-                        } catch (\Exception $e) {
-                            info($e);
-                            Notification::make()
-                                ->title('Gagal')
-                                ->body($e->getMessage())
-                                ->warning()
-                                ->send();
-                        }
-
-                    })
+                    ->action(fn (array $data) => $this->handleAddItem($data))
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -266,5 +220,66 @@ class PurchaseReturnItemsRelationManager extends RelationManager
             ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
     }
+
+    protected function getItemOptions(Get $get): array
+    {
+        $category = $get('category');
+        $itemVariantId = $get('item_variant_id');
+        if (!$category) {
+            return [];
+        }
+        $warehouseId = $this->ownerRecord->warehouse_id;
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+        if ($itemVariantId) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $itemVariantId);
+        }
+        return Item::selectRaw("CONCAT(code, ' - ', name) as value, id")
+            ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds, $warehouseId) {
+                $query->whereNotIn('id', $itemVariantIds)
+                    ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
+                        $query->where('warehouse_id', $warehouseId);
+                    });
+            })->where('category', $category)
+            ->pluck('value', 'id')->toArray();
+    }
+
+    protected function getItemVariantOptions(Get $get, ?string $state): array
+    {
+        $itemId = $get('item_id');
+        if (!$itemId) {
+            return [];
+        }
+        $warehouseId = $this->ownerRecord->warehouse_id;
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+        if ($state) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
+        }
+        return ItemVariant::whereNotIn('id', $itemVariantIds)
+                    ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
+                        $query->where('warehouse_id', $warehouseId);
+                })->where('item_id', $itemId)
+                ->pluck('color', 'id')->toArray();
+    }
+
+    public function handleAddItem(array $data): void
+    {
+        try {
+            if ($this->ownerRecord->status == 'approve') {
+                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+            }
+            $purchaseReturnService = new PurchaseReturnService();
+            $purchaseReturnService->addTransactionDetail($this->ownerRecord, $data);
+        } catch (\Exception $e) {
+            info($e);
+            Notification::make()
+                ->title('Gagal')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
+    }
+
 
 }

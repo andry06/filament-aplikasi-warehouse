@@ -11,12 +11,8 @@ use Filament\Tables\Table;
 use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
-use Illuminate\Support\Facades\DB;
 use App\Services\TransactionService;
-use App\Services\PurchaseReturnService;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\Transaction\PurchaseReturn;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\PurchaseReturnResource\Pages;
 use App\Filament\Resources\PurchaseReturnResource\RelationManagers;
@@ -94,40 +90,7 @@ class PurchaseReturnResource extends Resource
                             ->color(fn ($livewire) => $livewire->record?->status == 'draft' ? 'success' : 'warning')
                             ->requiresConfirmation()
                             ->visible(fn ($livewire) => $livewire->record != null)
-                            ->action(function ($livewire) {
-                                try {
-                                    $transactionService = app(TransactionService::class);
-                                    if ($transactionService->isNotAllowedApprove($livewire->record)) {
-                                        throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
-                                    }
-                                    $purchaseReturnService = app(PurchaseReturnService::class);
-                                    DB::beginTransaction();
-                                    if ($livewire->record?->status == 'draft') {
-                                        $purchaseReturnService->approve($livewire->record);
-                                        $message = 'Status berhasil diapprove';
-                                    } else {
-                                        $purchaseReturnService->cancelApprove($livewire->record);
-                                        $message = 'Status berhasil menjadi draft kembali';
-                                    }
-                                    DB::commit();
-                                    Notification::make()
-                                        ->title($message)
-                                        ->success()
-                                        ->send();
-                                    return redirect()->route('filament.admin.resources.purchase-returns.edit', [
-                                        'record' => $livewire->record->id,
-                                    ]);
-                                } catch (\Exception $e) {
-                                    // info($e);
-                                    DB::rollback();
-                                    Notification::make()
-                                        ->title('Gagal mengubah status')
-                                        ->body($e->getMessage())
-                                        ->warning()
-                                        ->send();
-                                }
-                            }),
-                        Forms\Components\Actions\Action::make('print')
+                            ->action(fn ($livewire) => $livewire->toggleApprove()),                        Forms\Components\Actions\Action::make('print')
                             ->label('Cetak')
                             ->color('primary')
                             ->extraAttributes([

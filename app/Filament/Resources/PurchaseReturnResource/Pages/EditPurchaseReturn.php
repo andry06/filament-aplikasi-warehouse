@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources\PurchaseReturnResource\Pages;
 
-use App\Filament\Resources\PurchaseReturnResource;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\DB;
+use App\Services\TransactionService;
+use App\Services\PurchaseReturnService;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;;
+use App\Filament\Resources\PurchaseReturnResource;
 
 class EditPurchaseReturn extends EditRecord
 {
@@ -14,13 +18,48 @@ class EditPurchaseReturn extends EditRecord
     {
         return [
             Actions\DeleteAction::make()
-                ->visible(fn ($livewire) => $livewire->record?->status == 'draft'),
+                ->visible(fn () => $this->record?->status == 'draft'),
         ];
     }
 
     protected function getFormActions(): array
     {
         return [];
+    }
+
+    public function toggleApprove()
+    {
+        try {
+            $transactionService = app(TransactionService::class);
+            if ($transactionService->isNotAllowedApprove($this->record)) {
+                throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
+            }
+            $purchaseReturnService = app(PurchaseReturnService::class);
+            DB::beginTransaction();
+            if ($this->record?->status == 'draft') {
+                $purchaseReturnService->approve($this->record);
+                $message = 'Status berhasil diapprove';
+            } else {
+                $purchaseReturnService->cancelApprove($this->record);
+                $message = 'Status berhasil menjadi draft kembali';
+            }
+            DB::commit();
+            Notification::make()
+                ->title($message)
+                ->success()
+                ->send();
+            return redirect()->route('filament.admin.resources.purchase-returns.edit', [
+                'record' => $this->record->id,
+            ]);
+        } catch (\Exception $e) {
+            // info($e);
+            DB::rollback();
+            Notification::make()
+                ->title('Gagal mengubah status')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
     }
 }
 

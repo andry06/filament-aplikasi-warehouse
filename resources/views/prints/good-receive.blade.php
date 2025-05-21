@@ -91,6 +91,18 @@
             border-bottom: 1px dotted #000; width: 100px; margin: 0 auto;
         }
 
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-left {
+            text-align: left !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
         @media print {
         body {
             margin: 0;
@@ -165,17 +177,17 @@
                 <th>Name</th>
                 <th>Color</th>
                 <th width="10%">Qty</th>
-                <th>Satuan</th>
+                <th width="12%">Satuan</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($transactionDetails as $key => $transactionDetail )
             <tr>
                 <td>{{ $key+1 }}</td>
-                <td style="text-align: left;">{{ $transactionDetail->item->code }}</td>
-                <td style="text-align: left;">{{ $transactionDetail->item->name }}</td>
-                <td style="text-align: left;">{{ $transactionDetail->ItemVariant->color }}</td>
-                <td style="text-align: right;">{{ trimDecimalZero($transactionDetail->qty) }}</td>
+                <td class="text-left">{{ $transactionDetail->item->code }}</td>
+                <td class="text-left">{{ $transactionDetail->item->name }}</td>
+                <td class="text-left">{{ $transactionDetail->ItemVariant->color }}</td>
+                <td class="text-right">{{ trimDecimalZero($transactionDetail->qty) }}</td>
                 <td>{{ $transactionDetail->item->unit }}</td>
             </tr>
             @endforeach

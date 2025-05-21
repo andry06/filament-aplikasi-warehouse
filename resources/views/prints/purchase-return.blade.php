@@ -66,6 +66,18 @@
             color: #000;
         }
 
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-left {
+            text-align: left !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
         .note {
             margin-top: 10px;
             font-weight: bold;
@@ -85,6 +97,10 @@
         .print-button {
             margin-top: 40px;
             text-align: center;
+        }
+
+        .bottom-signature {
+            border-bottom: 1px dotted #000; width: 100px; margin: 0 auto;
         }
 
         @media print {
@@ -136,8 +152,8 @@
                 <div class="line"></div>
             </td>
             <td width="50%">
-                <div class="line"></div>
                 <strong>Pemasok</strong> : {{ $transaction->supplier->name }}<br>
+                <div class="line"></div>
             </td>
         </tr>
         <tr>
@@ -156,23 +172,23 @@
         <table class="item-table">
             <thead>
                 <tr>
-                    <th>No.</th>
+                    <th width="5%">No.</th>
                     <th>Code</th>
                     <th>Name</th>
                     <th>Color</th>
-                    <th>Qty</th>
-                    <th>Satuan</th>
+                    <th width="10%">Qty</th>
+                    <th width="12%">Satuan</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($transactionDetails as $key => $transactionDetail )
-                <tr>
+                <tr >
                     <td>{{ $key+1 }}</td>
-                    <td align="left">{{ $transactionDetail->item->code }}</td>
-                    <td align="left">{{ $transactionDetail->item->name }}</td>
-                    <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
-                    <td>{{ $transactionDetail->qty }}</td>
-                    <td>{{ $transactionDetail->item->unit }}</td>
+                    <td class="text-left">{{ $transactionDetail->item->code }}</td>
+                    <td class="text-left">{{ $transactionDetail->item->name }}</td>
+                    <td class="text-left">{{ $transactionDetail->ItemVariant->color }}</td>
+                    <td class="text-right">{{ $transactionDetail->qty }}</td>
+                    <td class="text-center">{{ $transactionDetail->item->unit }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -191,9 +207,9 @@
             <td>Mengetahui</td>
         </tr>
         <tr>
-            <td>_______________________</td>
-            <td>_______________________</td>
-            <td>_______________________</td>
+            <td align="center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
         </tr>
         </table>
     </div>

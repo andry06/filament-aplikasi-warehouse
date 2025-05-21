@@ -121,6 +121,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                                 ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->prefix('Rp')
                                 ->disabled()
+                                ->reactive()
                                 ->numeric(),
                         ])->columnSpan(10)->columns(3),
                     ]),
@@ -149,15 +150,15 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->label('Color')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('unit')
-                    ->label('Unit')
-                    ->sortable()
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('qty')
                     ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                     ->label('Jumlah')
                     ->alignRight()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('unit')
+                    ->label('Unit')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
                     ->alignRight()
@@ -201,7 +202,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
-                    ->action(fn (array $data) => $this->handleCreateBarang($data))
+                    ->action(fn (array $data) => $this->handleAddItem($data))
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -301,23 +302,22 @@ class GoodReceiveItemsRelationManager extends RelationManager
             ->send();
     }
 
-    public function handleCreateBarang(array $data): void
-{
-    try {
-        if ($this->ownerRecord->status === 'approve') {
-            throw new \Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+    protected function handleAddItem(array $data): void
+    {
+        try {
+            if ($this->ownerRecord->status === 'approve') {
+                throw new \Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+            }
+            $this->ownerRecord->transactionDetails()->create($data + [
+                'type' => 'in'
+            ]);
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Gagal')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
         }
-
-        $this->ownerRecord->transactionDetails()->create($data + [
-            'type' => 'in'
-        ]);
-    } catch (\Exception $e) {
-        \Filament\Notifications\Notification::make()
-            ->title('Gagal')
-            ->body($e->getMessage())
-            ->warning()
-            ->send();
     }
-}
 
 }

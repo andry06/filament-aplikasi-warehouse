@@ -34,10 +34,8 @@ class EditGoodReceive extends EditRecord
             if ($transactionService->isNotAllowedApprove($this->record)) {
                 throw new \Exception('Transaksi ini terkunci karena sudah terdapat stock opname setelah tanggal transaksi ini.');
             }
-
             $goodReceiveService = app(GoodReceiveService::class);
             DB::beginTransaction();
-
             if ($this->record?->status == 'draft') {
                 $goodReceiveService->approve($this->record);
                 $message = 'Status berhasil diapprove';
@@ -45,19 +43,16 @@ class EditGoodReceive extends EditRecord
                 $goodReceiveService->cancelApprove($this->record);
                 $message = 'Status berhasil menjadi draft kembali';
             }
-
             DB::commit();
-
             Notification::make()
                 ->title($message)
                 ->success()
                 ->send();
-
             return redirect()->route('filament.admin.resources.good-receives.edit', [
                 'record' => $this->record->id,
             ]);
         } catch (\Exception $e) {
-            info($e);
+            // info($e);
             DB::rollback();
             Notification::make()
                 ->title('Cancel Approve gagal.')
