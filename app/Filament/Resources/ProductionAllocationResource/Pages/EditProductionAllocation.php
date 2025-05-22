@@ -69,10 +69,8 @@ class EditProductionAllocation extends EditRecord
             if ($this->record?->status == 'approve') {
                 throw new \Exception('Data tidak dapat dihapus karena statusnya sudah diapprove.');
             }
-
             $this->record->transactionDetails()->delete();
             $this->record->delete();
-
             Notification::make()
                     ->title('Data berhasil dihapus.')
                     ->success()

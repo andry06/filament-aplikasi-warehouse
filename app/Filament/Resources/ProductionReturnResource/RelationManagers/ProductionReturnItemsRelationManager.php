@@ -36,24 +36,7 @@ class ProductionReturnItemsRelationManager extends RelationManager
                 ->schema([
                     Forms\Components\Select::make('item_id')
                         ->label('Barang')
-                        ->options(function (Get $get, $state) {
-
-                            $projectId = $this->ownerRecord->project_id;
-                            $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                ->pluck('item_variant_id')->toArray();
-
-                            $transactionIds = Transaction::where('project_id', $projectId)
-                                ->where('type', 'production_allocation')
-                                ->where('status', 'approve')
-                                ->pluck('id')->toArray();
-
-                            return TransactionDetail::selectRaw('concat(items.code, " - ", items.name) as value, items.id')
-                                ->leftJoin('items', 'transaction_details.item_id', '=', 'items.id')
-                                ->whereNotIn('transaction_details.item_variant_id', $itemVariantIds)
-                                ->whereIn('transaction_id', $transactionIds)
-                                ->groupBy('transaction_details.item_id')
-                                ->pluck('value', 'id')->toArray();
-                        })
+                        ->options(fn (Get $get) => $this->getItemOptions($get))
                         ->afterStateUpdated(function (Set $set, $state) {
                             $set('item_variant_id', null);
                             $set('qty', null);
@@ -63,44 +46,21 @@ class ProductionReturnItemsRelationManager extends RelationManager
                         ->searchable(),
                     Forms\Components\Select::make('item_variant_id')
                         ->label('Warna')
-                        ->options(function (Get $get, $state) {
-                            $itemId = $get('item_id');
-                            if (!$itemId) {
+                        ->options(fn (Get $get, $state) => $this->getItemVariantOptions($get, $state))
+                        ->afterStateUpdated(function (Set $set, $state) {
+                            if(!$state) {
                                 return [];
                             }
-
+                            $stockService = new StockService();
                             $projectId = $this->ownerRecord->project_id;
-                            $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                ->pluck('item_variant_id')->toArray();
-
-                            $transactionIds = Transaction::where('project_id', $projectId)
-                                ->where('type', 'production_allocation')
-                                ->where('status', 'approve')
-                                ->pluck('id')->toArray();
-
-                            return TransactionDetail::leftJoin('item_variants', 'transaction_details.item_variant_id', '=', 'item_variants.id')
-                                ->whereNotIn('transaction_details.item_variant_id', $itemVariantIds)
-                                ->whereIn('transaction_id', $transactionIds)
-                                ->where('transaction_details.item_id', $itemId)
-                                ->groupBy('transaction_details.item_variant_id')
-                                ->pluck('color', 'item_variants.id')->toArray();
-                    })
-                    ->afterStateUpdated(function (Set $set, $state) {
-                        if(!$state) {
-                            return [];
-                        }
-
-                        $stockService = new StockService();
-                        $projectId = $this->ownerRecord->project_id;
-                        $stockItem = $stockService->getProductionStockOnProject($projectId, $state);
-
-                        $set('stock', $stockItem);
-                    })
-                    ->reactive()->searchable(),
-                Forms\Components\TextInput::make('unit')
-                    ->label('Satuan')
-                    ->readOnly(),
-                Forms\Components\TextInput::make('stock')
+                            $stockItem = $stockService->getProductionStockOnProject($projectId, $state);
+                            $set('stock', trimDecimalZero($stockItem));
+                        })
+                        ->reactive()->searchable(),
+                    Forms\Components\TextInput::make('unit')
+                        ->label('Satuan')
+                        ->readOnly(),
+                    Forms\Components\TextInput::make('stock')
                         ->label('Qty Tersedia')
                         ->afterStateHydrated(function (TextInput $component, Get $get) {
                             $projectId = $this->ownerRecord->project_id;
@@ -110,24 +70,25 @@ class ProductionReturnItemsRelationManager extends RelationManager
                             }
                             $stockService = new StockService();
                             $stockItem = $stockService->getProductionStockOnProject($projectId, $get('item_variant_id'));
-                            $component->state($stockItem);
+                            $component->state(trimDecimalZero($stockItem));
                         })
                         ->disabled(),
-                Forms\Components\TextInput::make('qty')
-                    ->label('Jumlah')
-                    ->numeric()
-                    ->maxValue(fn (Get $get) => $get('stock')) // ← batas maksimal dari stock
-                    ->reactive()
-                    ->minValue(0.01)
-                    ->required()
-                    ->validationMessages([
-                        'required' => 'Jumlah wajib diisi.',
-                        'min' => 'Jumlah minimal adalah 1.',
-                        'max' => 'Jumlah tidak boleh melebihi qty yang tersedia.',
-                    ]),
-                Forms\Components\TextInput::make('note')
-                                ->label('Catatan')
-                ])->columns(3),
+                    Forms\Components\TextInput::make('qty')
+                        ->label('Jumlah')
+                        ->numeric()
+                        ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                        ->maxValue(fn (Get $get) => $get('stock')) // ← batas maksimal dari stock
+                        ->reactive()
+                        ->minValue(0.01)
+                        ->required()
+                        ->validationMessages([
+                            'required' => 'Jumlah wajib diisi.',
+                            'min' => 'Jumlah minimal adalah 1.',
+                            'max' => 'Jumlah tidak boleh melebihi qty yang tersedia.',
+                        ]),
+                    Forms\Components\TextInput::make('note')
+                        ->label('Catatan')
+                    ])->columns(3),
             ]);
     }
 
@@ -152,17 +113,21 @@ class ProductionReturnItemsRelationManager extends RelationManager
                     ->searchable(),
                 Tables\Columns\TextColumn::make('qty')
                     ->label('Jumlah')
+                    ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                    ->alignRight()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('unit')
                     ->label('Unit')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah($state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->label('Total Harga')
-                    ->money('IDR', locale: 'id')
+                    ->alignRight()
+                    ->formatStateUsing(fn ($state) => rupiah((int) $state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('note')
                     ->label('Catatan')
@@ -197,24 +162,7 @@ class ProductionReturnItemsRelationManager extends RelationManager
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
-                    ->action(function (array $data): void {
-                        try {
-                            if ($this->ownerRecord->status == 'approve') {
-                                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
-                            }
-
-                            $productionAllocationService = new ProductionAllocationService();
-                            $productionAllocationService->addTransactionDetail($this->ownerRecord, $data);
-
-                        } catch (\Exception $e) {
-                            info($e);
-                            Notification::make()
-                                ->title('Gagal')
-                                ->body($e->getMessage())
-                                ->warning()
-                                ->send();
-                        }
-                    })
+                    ->action(fn (array $data) => $this->handleAddItem($data))
                 ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -244,5 +192,68 @@ class ProductionReturnItemsRelationManager extends RelationManager
             ->leftJoin('item_variants', 'transaction_details.item_variant_id', '=', 'item_variants.id')
             ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
+    }
+
+    protected function getItemOptions(Get $get): array
+    {
+        $itemVariantId = $get('item_variant_id');
+        $projectId = $this->ownerRecord->project_id;
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+        if ($itemVariantId) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $itemVariantId);
+        }
+        $transactionIds = Transaction::where('project_id', $projectId)
+            ->where('type', 'production_allocation')
+            ->where('status', 'approve')
+            ->pluck('id')->toArray();
+        return TransactionDetail::selectRaw('concat(items.code, " - ", items.name) as value, items.id')
+            ->leftJoin('items', 'transaction_details.item_id', '=', 'items.id')
+            ->whereNotIn('transaction_details.item_variant_id', $itemVariantIds)
+            ->whereIn('transaction_id', $transactionIds)
+            ->groupBy('transaction_details.item_id')
+            ->pluck('value', 'id')->toArray();
+    }
+
+    protected function getItemVariantOptions(Get $get, ?string $state): array
+    {
+        $itemId = $get('item_id');
+        if (!$itemId) {
+            return [];
+        }
+        $projectId = $this->ownerRecord->project_id;
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+        if ($state) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
+        }
+        $transactionIds = Transaction::where('project_id', $projectId)
+            ->where('type', 'production_allocation')
+            ->where('status', 'approve')
+            ->pluck('id')->toArray();
+        return TransactionDetail::leftJoin('item_variants', 'transaction_details.item_variant_id', '=', 'item_variants.id')
+            ->whereNotIn('transaction_details.item_variant_id', $itemVariantIds)
+            ->whereIn('transaction_id', $transactionIds)
+            ->where('transaction_details.item_id', $itemId)
+            ->groupBy('transaction_details.item_variant_id')
+            ->pluck('color', 'item_variants.id')->toArray();
+    }
+
+    protected function handleAddItem(array $data): void
+    {
+        try {
+            if ($this->ownerRecord->status == 'approve') {
+                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+            }
+            $productionAllocationService = new ProductionAllocationService();
+            $productionAllocationService->addTransactionDetail($this->ownerRecord, $data);
+        } catch (\Exception $e) {
+            info($e);
+            Notification::make()
+                ->title('Gagal')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
     }
 }
