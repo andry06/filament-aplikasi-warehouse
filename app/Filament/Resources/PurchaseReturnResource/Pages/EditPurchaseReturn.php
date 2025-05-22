@@ -18,7 +18,8 @@ class EditPurchaseReturn extends EditRecord
     {
         return [
             Actions\DeleteAction::make()
-                ->visible(fn () => $this->record?->status == 'draft'),
+                ->visible(fn () => $this->record?->status == 'draft')
+                ->action(fn () => $this->deleteRecord()),
         ];
     }
 
@@ -61,6 +62,30 @@ class EditPurchaseReturn extends EditRecord
                 ->send();
         }
     }
+
+    public function deleteRecord()
+    {
+        try {
+            if ($this->record?->status == 'approve') {
+                throw new \Exception('Data tidak dapat dihapus karena statusnya sudah diapprove.');
+            }
+            $this->record->transactionDetails()->delete();
+            $this->record->delete();
+            Notification::make()
+                    ->title('Data berhasil dihapus.')
+                    ->success()
+                    ->send();
+            return redirect()->route('filament.admin.resources.purchase-returns.index');
+        } catch (\Exception $e) {
+            info($e);
+            Notification::make()
+                ->title('Gagal menghapus data.')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
+    }
+
 }
 
 

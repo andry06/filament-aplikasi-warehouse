@@ -90,7 +90,8 @@ class PurchaseReturnResource extends Resource
                             ->color(fn ($livewire) => $livewire->record?->status == 'draft' ? 'success' : 'warning')
                             ->requiresConfirmation()
                             ->visible(fn ($livewire) => $livewire->record != null)
-                            ->action(fn ($livewire) => $livewire->toggleApprove()),                        Forms\Components\Actions\Action::make('print')
+                            ->action(fn ($livewire) => $livewire->toggleApprove()),
+                        Forms\Components\Actions\Action::make('print')
                             ->label('Cetak')
                             ->color('primary')
                             ->extraAttributes([

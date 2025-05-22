@@ -23,7 +23,8 @@ class EditGoodReceive extends EditRecord
     {
         return [
             Actions\DeleteAction::make()
-                ->visible(fn ($livewire) => $livewire->record?->status == 'draft'),
+                ->visible(fn ($livewire) => $livewire->record?->status == 'draft')
+                ->action(fn () => $this->deleteRecord())
         ];
     }
 
@@ -61,5 +62,31 @@ class EditGoodReceive extends EditRecord
                 ->send();
         }
     }
+
+    public function deleteRecord()
+    {
+        try {
+            if ($this->record?->status == 'approve') {
+                throw new \Exception('Data tidak dapat dihapus karena statusnya sudah diapprove.');
+            }
+
+            $this->record->transactionDetails()->delete();
+            $this->record->delete();
+
+            Notification::make()
+                    ->title('Data berhasil dihapus.')
+                    ->success()
+                    ->send();
+            return redirect()->route('filament.admin.resources.good-receives.index');
+        } catch (\Exception $e) {
+            info($e);
+            Notification::make()
+                ->title('Gagal menghapus data.')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
+    }
+
 
 }

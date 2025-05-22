@@ -263,7 +263,7 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                 ->pluck('color', 'id')->toArray();
     }
 
-    public function handleAddItem(array $data): void
+    protected function handleAddItem(array $data): void
     {
         try {
             if ($this->ownerRecord->status == 'approve') {
