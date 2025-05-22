@@ -71,7 +71,7 @@ class EditProductionReturn extends EditRecord
                     ->title('Data berhasil dihapus.')
                     ->success()
                     ->send();
-            return redirect()->route('filament.admin.resources.good-receives.index');
+            return redirect()->route('filament.admin.resources.production-returns.index');
         } catch (\Exception $e) {
             info($e);
             Notification::make()

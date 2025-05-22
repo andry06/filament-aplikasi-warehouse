@@ -53,63 +53,21 @@ class StockOpnameItemsRelationManager extends RelationManager
                         ->schema([
                             Forms\Components\Select::make('item_id')
                                 ->label('Barang')
-                                ->options(function (Get $get, $state) {
-
-                                    $category = $get('category');
-                                    $itemVariantId = $get('item_variant_id');
-                                    if (!$category) {
-                                        return [];
-                                    }
-
-                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id')->toArray();
-
-                                    // Hapus item aktif dari daftar blacklist agar tetap muncul di options
-                                    if ($itemVariantId) {
-                                        $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $itemVariantId);
-                                    }
-
-                                    return  Item::selectRaw("CONCAT(items.code, ' - ', items.name) as value, items.id")
-                                        ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds) {
-                                            $query->whereNotIn('id', $itemVariantIds);
-                                        })->where('category', $category)
-                                        ->pluck('value', 'id');
-
-                                })
-                                ->afterStateUpdated(function (Set $set, $state) {
-                                    $set('unit', Item::find($state)?->unit);
-                                })
+                                ->options(fn (Get $get) => $this->getItemOptions($get))
+                                ->afterStateUpdated(fn (Set $set, $state) => $set('unit', Item::find($state)?->unit))
                                 ->reactive()
                                 ->searchable(),
                             Forms\Components\Select::make('item_variant_id')
                                 ->label('Warna')
-                                ->options(function (Get $get, $state) {
-                                    $itemId = $get('item_id');
-                                    if (!$itemId) {
-                                        return [];
-                                    }
-
-                                    $itemVariantIds = $this->ownerRecord->transactionDetails()
-                                        ->pluck('item_variant_id')->toArray();
-
-                                    if ($state) {
-                                        $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
-                                    }
-
-                                    return ItemVariant::whereNotIn('id', $itemVariantIds)
-                                            ->where('item_id', $itemId)
-                                            ->pluck('color', 'id');
-                                })
+                                ->options(fn (Get $get, $state) => $this->getItemVariantOptions($get, $state))
                                 ->afterStateUpdated(function (Set $set, $state) {
                                     $warehouseId = $this->ownerRecord->warehouse_id;
                                     if(!$state || !$warehouseId){
                                         return [];
                                     }
-
                                     $stockService = new StockService();
                                     $stock = $stockService->getStock($state, $warehouseId);
-
-                                    $set('system_stock', $stock);
+                                    $set('system_stock', trimDecimalZero($stock));
                                 })
                                 ->reactive()
                                 ->searchable(),
@@ -118,6 +76,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                                 ->readOnly(),
                             Forms\Components\TextInput::make('system_stock')
                                 ->label('Stok Sistem')
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->afterStateHydrated(function (TextInput $component, Get $get) {
                                     $warehouseId = $this->ownerRecord->warehouse_id;
                                     if (!$get('item_variant_id')){
@@ -125,7 +84,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                                     }
                                     $stockService = new StockService();
                                     $stock = $stockService->getStock($get('item_variant_id'), $warehouseId);
-                                    $component->state($stock);
+                                    $component->state(trimDecimalZero($stock));
                                 })
                                 ->suffixAction(
                                     Action::make('refreshPrice')
@@ -133,44 +92,23 @@ class StockOpnameItemsRelationManager extends RelationManager
                                         ->icon('heroicon-m-arrow-path')
                                         ->tooltip('Perbarui stok saat ini')
                                         ->visible(fn (string $context) => $context === 'edit')
-                                        ->action(function (Set $set, Get $get) {
-
-                                            if (! $get('item_variant_id')) {
-                                                Notification::make()
-                                                    ->title('Gagal item belum dipilih.')
-                                                    ->danger()
-                                                    ->send();
-                                                return;
-                                            }
-
-                                            $stockService = new StockService();
-                                            $stockSystem = $stockService->getStock($get('item_variant_id'), $this->ownerRecord->warehouse_id);
-
-                                            $actualStock = $get('actual_stock') ?? 0;
-                                            $set('system_stock', $stockSystem);
-                                            $set('diff_stock', ($actualStock - $stockSystem));
-                                            $set('is_update_stock', true);
-
-                                            Notification::make()
-                                            ->title('Berhasil memperbarui stock .')
-                                            ->body('Agar data didatabase berubah silakan klik simpan.')
-                                            ->success()
-                                            ->send();
-
-                                        })
+                                        ->action(fn (Set $set, Get $get) => $this->refreshNewStock($get, $set))
                                 )
                                 ->readOnly(),
                             Forms\Components\Hidden::make('is_update_stock')
-                                ->default(false) // atau false, sesuai kebutuhan
+                                ->default(false)
+                                ->reactive()
                                 ->visible(fn (string $context) => $context === 'edit'),
                             Forms\Components\TextInput::make('actual_stock')
                                 ->label('Stock Aktual')
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
                                 ->numeric()
                                 ->live()
                                 ->minValue(0.01)
                                 ->required()
                                 ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                    $set('diff_stock', $state - $get('system_stock'));
+                                    $diffStock = $state - $get('system_stock');
+                                    $set('diff_stock', trimDecimalZero($diffStock));
                                 })
                                 ->validationMessages([
                                     'required' => 'Stock Aktual wajib diisi.',
@@ -178,6 +116,8 @@ class StockOpnameItemsRelationManager extends RelationManager
                                 ]),
                             Forms\Components\TextInput::make('diff_stock')
                                 ->label('Selisih Stok')
+                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                                ->reactive()
                                 ->readOnly(),
                         ])->columnSpan(10)->columns(3),
                     ]),
@@ -265,24 +205,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                     ->label('Tambah Barang')
                     ->visible(fn ($livewire) => $livewire->ownerRecord->status !== 'approve')
                     ->closeModalByClickingAway(false)
-                    ->action(function (array $data): void {
-                        try {
-                            if ($this->ownerRecord->status == 'approve') {
-                                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
-                            }
-
-                            $stockOpnameService = new StockOpnameService();
-                            $stockOpnameService->addTransactionDetail($this->ownerRecord, $data);
-
-                        } catch (\Exception $e) {
-                            info($e);
-                            Notification::make()
-                                ->title('Gagal')
-                                ->body($e->getMessage())
-                                ->warning()
-                                ->send();
-                        }
-                    }),
+                    ->action(fn (array $data) => $this->handleAddItem($data)),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -328,5 +251,91 @@ class StockOpnameItemsRelationManager extends RelationManager
             ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
             ->leftJoin('stock_opname_details', 'transaction_details.id', '=', 'stock_opname_details.transaction_detail_id')
             ->where('transaction_details.transaction_id', '=', $this->ownerRecord->id);
+    }
+
+    protected function getItemOptions(Get $get): array
+    {
+        $category = $get('category');
+        $itemVariantId = $get('item_variant_id');
+        if (!$category) {
+            return [];
+        }
+
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+
+        if ($itemVariantId) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $itemVariantId);
+        }
+
+        return  Item::selectRaw("CONCAT(items.code, ' - ', items.name) as value, items.id")
+            ->whereHas('ItemVariants', function (Builder $query) use ($itemVariantIds) {
+                $query->whereNotIn('id', $itemVariantIds);
+            })->where('category', $category)
+            ->pluck('value', 'id')->toArray();
+    }
+
+    protected function getItemVariantOptions(Get $get, ?string $state): array
+    {
+        $itemId = $get('item_id');
+        if (!$itemId) {
+            return [];
+        }
+
+        $itemVariantIds = $this->ownerRecord->transactionDetails()
+            ->pluck('item_variant_id')->toArray();
+
+        if ($state) {
+            $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
+        }
+
+        return ItemVariant::whereNotIn('id', $itemVariantIds)
+                ->where('item_id', $itemId)
+                ->pluck('color', 'id')->toArray();
+    }
+
+    protected function refreshNewStock(Get $get, Set $set): void
+    {
+        if (! $get('item_variant_id')) {
+            Notification::make()
+                ->title('Gagal item belum dipilih.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $stockService = new StockService();
+        $stockSystem = $stockService->getStock($get('item_variant_id'), $this->ownerRecord->warehouse_id);
+        $actualStock = $get('actual_stock') ?? 0;
+
+        $set('system_stock', $stockSystem);
+        $set('diff_stock', ($actualStock - $stockSystem));
+        $set('is_update_stock', true);
+
+        Notification::make()
+            ->title('Berhasil memperbarui stock .')
+            ->body('Agar data didatabase berubah silakan klik simpan.')
+            ->success()
+            ->send();
+    }
+
+    protected function handleAddItem(array $data): void
+    {
+        try {
+            if ($this->ownerRecord->status == 'approve') {
+                throw new Exception('Anda tidak dapat menambahkan barang karena status sudah approve.');
+            }
+
+            $stockOpnameService = new StockOpnameService();
+            $stockOpnameService->addTransactionDetail($this->ownerRecord, $data);
+
+        } catch (\Exception $e) {
+            info($e);
+            Notification::make()
+                ->title('Gagal')
+                ->body($e->getMessage())
+                ->warning()
+                ->send();
+        }
     }
 }

@@ -75,7 +75,7 @@ class EditProductionAllocation extends EditRecord
                     ->title('Data berhasil dihapus.')
                     ->success()
                     ->send();
-            return redirect()->route('filament.admin.resources.good-receives.index');
+            return redirect()->route('filament.admin.resources.production-allocations.index');
         } catch (\Exception $e) {
             info($e);
             Notification::make()
