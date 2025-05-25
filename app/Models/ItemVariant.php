@@ -66,4 +66,9 @@ class ItemVariant extends Model
     {
         return $this->hasMany(StockMutation::class);
     }
+
+    public function getItemFullNameAttribute()
+    {
+    return $this->item->code .' - '. $this->item->name . ' | Warna : ' . $this->color . ' | Unit : '.$this->item->unit;
+    }
 }

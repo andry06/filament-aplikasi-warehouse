@@ -169,8 +169,8 @@ class PurchaseReturnItemsRelationManager extends RelationManager
                     ->dateTime('d F Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
             ])
+            ->recordUrl(null)
             ->filters([
                 SelectFilter::make('category')
                     ->multiple()

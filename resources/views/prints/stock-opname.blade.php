@@ -87,6 +87,22 @@
             text-align: center;
         }
 
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-left {
+            text-align: left !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
+        .bottom-signature {
+            border-bottom: 1px dotted #000; width: 100px; margin: 0 auto;
+        }
+
         @media print {
         body {
             margin: 0;
@@ -143,30 +159,45 @@
         </table>
 
         <!-- Tabel Barang -->
-        <table class="item-table">
-            <thead>
-                <tr>
-                    <th>No.</th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Color</th>
-                    <th>Qty</th>
-                    <th>Satuan</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($transactionDetails as $key => $transactionDetail )
-                <tr>
-                    <td>{{ $key+1 }}</td>
-                    <td align="left">{{ $transactionDetail->item->code }}</td>
-                    <td align="left">{{ $transactionDetail->item->name }}</td>
-                    <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
-                    <td>{{ $transactionDetail->qty }}</td>
-                    <td>{{ $transactionDetail->item->unit }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+        @php
+            $groupedDetails = $transactionDetails->groupBy('item_category');
+        @endphp
+
+        @foreach ($groupedDetails as $item_category => $details)
+            <h4>Kategori: {{ ucfirst($item_category) }}</h4>
+
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" width="5%">No.</th>
+                        <th rowspan="2">Code</th>
+                        <th rowspan="2">Name</th>
+                        <th rowspan="2">Color</th>
+                        <th colspan="3">Stock</th>
+                        <th rowspan="2" width="10%">Satuan</th>
+                    </tr>
+                    <tr>
+                        <th width="7%">System</th>
+                        <th width="7%">Aktual</th>
+                        <th width="7%">Selisih</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($details as $key => $transactionDetail)
+                        <tr>
+                            <td>{{ $key + 1 }}</td>
+                            <td class="text-left">{{ $transactionDetail->item->code }}</td>
+                            <td class="text-left">{{ $transactionDetail->item->name }}</td>
+                            <td class="text-left">{{ $transactionDetail->ItemVariant->color }}</td>
+                            <td class="text-right">{{ $transactionDetail->stockOpnameDetail->system_stock }}</td>
+                            <td class="text-right">{{ $transactionDetail->stockOpnameDetail->actual_stock }}</td>
+                            <td class="text-right">{{ with_prefix_diff($transactionDetail->stockOpnameDetail->diff_stock) }}</td>
+                            <td>{{ $transactionDetail->item->unit }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endforeach
         <!-- Catatan -->
         <div class="note">
         Catatan:<br>
@@ -176,14 +207,14 @@
         <!-- Tanda Tangan -->
         <table class="signatures">
         <tr>
-            <td>Diserahkan oleh</td>
+            <td>Diperiksa oleh</td>
             <td>Diterima oleh</td>
             <td>Mengetahui</td>
         </tr>
         <tr>
-            <td>_______________________</td>
-            <td>_______________________</td>
-            <td>_______________________</td>
+            <td class="text-center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
         </tr>
         </table>
     </div>

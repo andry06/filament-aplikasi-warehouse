@@ -185,6 +185,7 @@ class GoodReceiveResource extends Resource
                     ->label('Gudang')
                     ->options(Warehouse::all()->pluck('name', 'id'))
                     ->searchable()
+
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),

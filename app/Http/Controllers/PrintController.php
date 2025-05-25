@@ -67,11 +67,20 @@ class PrintController extends Controller
         }
 
         $transactionDetails = $transaction->transactionDetails()
-            ->select('items.category','transaction_details.*', 'items.code as item_code', 'items.name as item_name', 'item_variants.color as item_color')
+            ->select('transaction_details.*', 'items.code as item_code', 'items.name as item_name', 'item_variants.color as item_color')
+            ->selectRaw("CASE
+                    WHEN items.category = 'asset' THEN 'Aset'
+                    WHEN items.category = 'accessories' THEN 'Aksesoris'
+                    WHEN items.category = 'main_material' THEN 'Material Utama'
+                    ELSE ''
+                END AS item_category")
             ->join('item_variants', 'item_variants.id', '=', 'transaction_details.item_variant_id')
             ->join('items', 'items.id', '=', 'item_variants.item_id')
+            // ->orderByRaw("FIELD(items.category, 'main_material', 'accesories', 'asset')")
+            ->orderBy('id', 'asc')
             ->get();
 
+        info($transactionDetails);
         return view('prints.stock-opname', [
             'transaction' => $transaction,
             'transactionDetails' => $transactionDetails,

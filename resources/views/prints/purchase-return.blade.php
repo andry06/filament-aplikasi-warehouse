@@ -207,7 +207,7 @@
             <td>Mengetahui</td>
         </tr>
         <tr>
-            <td align="center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
+            <td class="text-center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
             <td><div class="bottom-signature"></div></td>
             <td><div class="bottom-signature"></div></td>
         </tr>

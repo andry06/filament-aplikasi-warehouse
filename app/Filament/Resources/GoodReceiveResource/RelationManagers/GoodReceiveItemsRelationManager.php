@@ -147,7 +147,7 @@ class GoodReceiveItemsRelationManager extends RelationManager
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('color')
-                    ->label('Color')
+                ->label('Warna')
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('qty')

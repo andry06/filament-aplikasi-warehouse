@@ -143,7 +143,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('color')
-                    ->label('Color')
+                    ->label('Warna')
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('system_stock')
@@ -159,14 +159,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('diff_stock')
                     ->label('Selisih Stok')
                     ->color(fn ($state) => $state > 0 ? 'success' : ($state < 0 ? 'danger' : null))
-                    ->formatStateUsing(function ($state) {
-                        if ($state > 0) {
-                            return '+ ' . trimDecimalZero($state);
-                        } elseif ($state < 0) {
-                            return '- '. trimDecimalZero(abs($state)); // sudah minus otomatis
-                        }
-                        return '0'; // untuk nilai nol
-                    })
+                    ->formatStateUsing(fn ($state) => with_prefix_diff($state))
                     ->alignment('right')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('unit')

@@ -42,3 +42,20 @@ if (! function_exists('rupiah')) {
         return $hasil_rupiah;
     }
 }
+
+if (! function_exists('with_prefix_diff')) {
+    /**
+     * @param  float  $angka
+     * @return string
+     */
+    function with_prefix_diff($angka)
+    {
+        if (is_null($angka) ) {
+            return null;
+        }
+
+        $prefix = $angka > 0 ? '+' : '-';
+
+        return $prefix.' '.trimDecimalZero(abs($angka));
+    }
+}

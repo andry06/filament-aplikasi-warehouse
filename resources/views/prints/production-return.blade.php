@@ -87,6 +87,22 @@
             text-align: center;
         }
 
+        .bottom-signature {
+            border-bottom: 1px dotted #000; width: 100px; margin: 0 auto;
+        }
+
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-left {
+            text-align: left !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
         @media print {
         body {
             margin: 0;
@@ -169,10 +185,10 @@
                 @foreach ($transactionDetails as $key => $transactionDetail )
                 <tr>
                     <td>{{ $key+1 }}</td>
-                    <td align="left">{{ $transactionDetail->item->code }}</td>
-                    <td align="left">{{ $transactionDetail->item->name }}</td>
-                    <td align="left">{{ $transactionDetail->ItemVariant->color }}</td>
-                    <td>{{ $transactionDetail->qty }}</td>
+                    <td class="text-left">{{ $transactionDetail->item->code }}</td>
+                    <td class="text-left">{{ $transactionDetail->item->name }}</td>
+                    <td class="text-left">{{ $transactionDetail->ItemVariant->color }}</td>
+                    <td class="text-right">{{ $transactionDetail->qty }}</td>
                     <td>{{ $transactionDetail->item->unit }}</td>
                 </tr>
                 @endforeach
@@ -192,9 +208,9 @@
             <td>Mengetahui</td>
         </tr>
         <tr>
-            <td>_______________________</td>
-            <td>_______________________</td>
-            <td>_______________________</td>
+            <td class="text-center">{{ ucfirst($transaction->pic_field) }}<div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
+            <td><div class="bottom-signature"></div></td>
         </tr>
         </table>
     </div>
