@@ -1,54 +1,42 @@
 <?php
 
-namespace App\Filament\Resources\StockMutationResource\Pages;
+namespace App\Exports;
+
 
 use Carbon\Carbon;
-use Filament\Actions;
 use App\Models\ItemVariant;
 use App\Models\StockMutation;
-use Illuminate\Support\Facades\Session;
-use Filament\Resources\Pages\ListRecords;
-use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\StockMutationResource;
+use App\Exports\StockMutationSheetExport;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-
-class ListStockMutations extends ListRecords
+class StockMutationExport implements WithMultipleSheets
 {
-    protected static string $resource = StockMutationResource::class;
+    protected $groupStockMutations;
 
-    protected function getHeaderActions(): array
+    public function __construct()
     {
-        return [
-            // Actions\CreateAction::make(),
-            Actions\Action::make('export')
-                            ->label('Export')
-                            ->icon('heroicon-s-folder-arrow-down')
-                            ->color('success')
-                            // ->extraAttributes([
-                            //     'target' => '_blank'
-                            // ])
-                            ->url(fn () => route('export.stock-mutations'))
-                            // ->visible(fn ($livewire) => $livewire->record != null),
-        ];
+        $this->groupStockMutations = $this->getStockMutations()->groupBy('category');
     }
 
-    public function getTableQuery(): ?Builder
+    public function sheets(): array
     {
-        $filters = $this->tableFilters;
-
-        // untuk handle agar tidak memberatkan sistem
-        if($filters == null) {
-            return ItemVariant::limit(1);
+        foreach ($this->groupStockMutations as $category => $stockMutations) {
+            $sheets[] = new StockMutationSheetExport($category, $stockMutations);
         }
 
-        $warehouseId = $filters['warehouse_id']['value'] ?? null;
-        $dates = $filters['date']['date'] ?? null;
-        $categories = $filters['category']['values'] ?? null;
+        return $sheets;
+    }
 
-        Session::put('filter_stock_mutation', [
-            'warehouse_id' => $warehouseId,
-            'dates' => $dates,
-        ]);
+    /**
+     * Get stock mutations from session filters
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getStockMutations()
+    {
+        $sessionFilters = session('filter_stock_mutation');
+        $dates = $sessionFilters['dates'];
+        $warehouseId = $sessionFilters['warehouse_id'];
 
         $subQueryBeginStock = StockMutation::selectRaw('item_variant_id,
                 sum(qty_in) - sum(qty_out) as begin_stock')
@@ -78,8 +66,8 @@ class ListStockMutations extends ListRecords
                 ->leftJoin('items', 'item_variants.item_id', '=', 'items.id')
                 ->leftJoinSub($subQueryBeginStock, 'Gbs', 'Gbs.item_variant_id', '=', 'item_variants.id')
                 ->leftJoinSub($subQueryTransaction, 'Gt', 'Gt.item_variant_id', '=', 'item_variants.id')
-                ->when($categories, function ($query) use ($categories) {
-                    return $query->whereIn('items.category', $categories);
-                });
+                ->orderBy('items.category', 'asc')
+                ->get();
     }
+
 }
