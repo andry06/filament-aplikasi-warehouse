@@ -250,12 +250,14 @@ class PurchaseReturnItemsRelationManager extends RelationManager
         if (!$itemId) {
             return [];
         }
+
         $warehouseId = $this->ownerRecord->warehouse_id;
         $itemVariantIds = $this->ownerRecord->transactionDetails()
             ->pluck('item_variant_id')->toArray();
         if ($state) {
             $itemVariantIds = array_filter($itemVariantIds, fn($id) => $id != $state);
         }
+
         return ItemVariant::whereNotIn('id', $itemVariantIds)
                     ->whereHas('stocks', function (Builder $query) use ($warehouseId)  {
                         $query->where('warehouse_id', $warehouseId);

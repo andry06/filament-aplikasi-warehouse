@@ -118,7 +118,8 @@ class StockMutationDetailsRelationManager extends RelationManager
                 CASE
                     WHEN transactions.type = 'purchase_in' THEN CONCAT('Dari : ', suppliers.name)
                     WHEN transactions.type = 'purchase_return' THEN CONCAT('Ke : ', suppliers.name)
-                    WHEN transactions.type = 'production_allocation' OR transactions.type = 'production_out' THEN CONCAT('Produksi :  ', projects.name)
+                    WHEN transactions.type = 'production_allocation' THEN CONCAT('Ke Produksi :  ', projects.name)
+                    WHEN transactions.type = 'production_return' THEN CONCAT('Dari Produksi :  ', projects.name)
                     WHEN transactions.type = 'stock_opname'  THEN CONCAT('Stok Opname ( Aktual : ', stock_opname_details.actual_stock, ' Sistem : ', stock_opname_details.system_stock, ' )')
                     ELSE 'Lainnya'
                 END AS 'remaks'
@@ -129,7 +130,8 @@ class StockMutationDetailsRelationManager extends RelationManager
             ->leftJoin('stock_opname_details', 'transaction_details.id', '=', 'stock_opname_details.transaction_detail_id')
             ->where('transaction_details.item_variant_id', '=', $itemVariantId)
             ->where('transactions.warehouse_id', '=', $warehouseId)
-            ->whereBetween('transactions.date', [$startDate, $endDate]);
+            ->whereBetween('transactions.date', [$startDate, $endDate])
+            ->where('transactions.status', 'approve');
     }
 
 }

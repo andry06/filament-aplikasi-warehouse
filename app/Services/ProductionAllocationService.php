@@ -36,7 +36,7 @@ class ProductionAllocationService
 
         $transaction->update(['status' => 'approve']);
 
-        $this->updateProjectDate($transaction->project_id);
+        $this->updateProject($transaction->project_id);
     }
 
     public function cancelApprove(Transaction $transaction): void
@@ -56,20 +56,22 @@ class ProductionAllocationService
 
         $transaction->update(['status' => 'draft']);
 
-        $this->updateProjectDate($transaction->project_id);
+        $this->updateProject($transaction->project_id);
     }
 
-    public function updateProjectDate(int $projectId): void
+    public function updateProject(int $projectId): void
     {
         $transactionFirstProject = Transaction::where('project_id', $projectId)
             ->where('status', 'approve')
             ->orderBy('date')
             ->first();
 
+        $project = Project::find($projectId);
 
-        Project::where('id', $projectId)->update([
+        $project->update([
             'date' => $transactionFirstProject ? $transactionFirstProject->date : null,
-            'has_allocation' => $transactionFirstProject ? true : false
+            'has_allocation' => $transactionFirstProject ? true : false,
+            'material_cost' => $project->total_material_cost
         ]);
 
     }
@@ -79,7 +81,7 @@ class ProductionAllocationService
         $transaction->transactionDetails()
             ->create($data + [
                 'price' => ItemVariant::find($data['item_variant_id'])?->price,
-                'type' => 'out'
+                'type' => 'in'
             ]);
     }
 

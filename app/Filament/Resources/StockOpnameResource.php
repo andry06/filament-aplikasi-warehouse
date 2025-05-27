@@ -31,7 +31,7 @@ class StockOpnameResource extends Resource
 
     protected static ?string $navigationGroup = 'Manajemen Stok';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 13;
 
     public static function form(Form $form): Form
     {
@@ -165,15 +165,18 @@ class StockOpnameResource extends Resource
             ->defaultSort('number', 'desc')
             ->recordUrl(null)
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Gudang')
+                    ->options(Warehouse::all()->pluck('name', 'id'))
+                    ->searchable(),
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
             ]);
     }
 

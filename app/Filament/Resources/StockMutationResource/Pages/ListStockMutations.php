@@ -61,7 +61,6 @@ class ListStockMutations extends ListRecords
             })
             ->groupBy('warehouse_id', 'item_variant_id');
 
-            info($subQueryTransaction->get());
         return ItemVariant::select('item_variants.*', 'items.code', 'items.name', 'items.category', 'items.unit')
                 ->selectRaw('IFNULL(Gbs.begin_stock, 0) as begin_stock, IFNULL(Gt.total_qty_in, 0) as total_qty_in,
                     IFNULL(Gt.total_qty_out, 0) as total_qty_out,

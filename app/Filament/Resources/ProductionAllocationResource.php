@@ -10,14 +10,11 @@ use Filament\Tables\Table;
 use Illuminate\Support\Js;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
-use Illuminate\Support\Facades\DB;
 use App\Services\TransactionService;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\ProductionAllocationResource\Pages;
 use App\Filament\Resources\ProductionAllocationResource\RelationManagers;
-use App\Services\ProductionAllocationService;
 
 class ProductionAllocationResource extends Resource
 {
@@ -30,7 +27,7 @@ class ProductionAllocationResource extends Resource
 
     protected static ?string $navigationGroup = 'Produksi';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 11;
 
     public static function form(Form $form): Form
     {
@@ -194,7 +191,7 @@ class ProductionAllocationResource extends Resource
                     ->relationship(
                         name: 'project',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query) => $query->where('is_completed', false)->orderBy('name')
+                        modifyQueryUsing: fn (Builder $query) => $query->orderBy('name')
                     )
                     ->searchable(['name'])
             ])
@@ -202,9 +199,9 @@ class ProductionAllocationResource extends Resource
                 // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
             ]);
     }
 

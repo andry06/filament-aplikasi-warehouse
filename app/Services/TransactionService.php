@@ -136,6 +136,10 @@ class TransactionService
             ->orderBy('date', 'desc')
             ->first();
 
+        if (!$stockOpname) {
+            return false;
+        }
+
         $transactionTime = Carbon::parse($transaction->date);
         $stockOpnameTime = Carbon::parse($stockOpname->date);
 

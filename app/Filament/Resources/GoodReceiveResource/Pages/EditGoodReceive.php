@@ -53,7 +53,7 @@ class EditGoodReceive extends EditRecord
                 'record' => $this->record->id,
             ]);
         } catch (\Exception $e) {
-            // info($e);
+            info($e);
             DB::rollback();
             Notification::make()
                 ->title('Cancel Approve gagal.')

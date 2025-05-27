@@ -54,7 +54,7 @@ if (! function_exists('with_prefix_diff')) {
             return null;
         }
 
-        $prefix = $angka > 0 ? '+' : '-';
+        $prefix = ($angka > 0) ? '+' : (($angka < 0) ? '-' : null);
 
         return $prefix.' '.trimDecimalZero(abs($angka));
     }

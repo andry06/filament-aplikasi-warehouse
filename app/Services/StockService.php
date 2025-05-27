@@ -78,7 +78,7 @@ class StockService
             ]);
         }
 
-        $this->refreshBeginEndingStockMutation($transaction, $transactionDetail->item_variant_id);
+        // $this->refreshBeginEndingStockMutation($transaction, $transactionDetail->item_variant_id);
     }
 
     public function updateStockMutationForCancelApprove(Transaction $transaction, TransactionDetail $transactionDetail):void
@@ -99,36 +99,36 @@ class StockService
             $stockMutationToDate->delete();
         }
 
-        $this->refreshBeginEndingStockMutation($transaction, $transactionDetail->item_variant_id);
+        // $this->refreshBeginEndingStock?Mutation($transaction, $transactionDetail->item_variant_id);
     }
 
 
-    public function refreshBeginEndingStockMutation(Transaction $transaction, int $itemVariantId): void
-    {
-        $beforeStockMutation = StockMutation::where('warehouse_id', $transaction->warehouse_id)
-            ->where('item_variant_id', $itemVariantId)
-            ->whereDate('date', '<', $transaction->date->format('Y-m-d'))
-            ->orderBy('date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
+    // public function refreshBeginEndingStockMutation(Transaction $transaction, int $itemVariantId): void
+    // {
+    //     $beforeStockMutation = StockMutation::where('warehouse_id', $transaction->warehouse_id)
+    //         ->where('item_variant_id', $itemVariantId)
+    //         ->whereDate('date', '<', $transaction->date->format('Y-m-d'))
+    //         ->orderBy('date', 'desc')
+    //         ->orderBy('id', 'desc')
+    //         ->first();
 
-        $beginStock = $beforeStockMutation ? $beforeStockMutation->ending_stock : 0;
+    //     $beginStock = $beforeStockMutation ? $beforeStockMutation->ending_stock : 0;
 
-        $stockMutations = StockMutation::where('warehouse_id', $transaction->warehouse_id)
-            ->where('item_variant_id', $itemVariantId)
-            ->whereDate('date', '>=', $transaction->date->format('Y-m-d'))
-            ->orderBy('date', 'asc')
-            ->get();
+    //     $stockMutations = StockMutation::where('warehouse_id', $transaction->warehouse_id)
+    //         ->where('item_variant_id', $itemVariantId)
+    //         ->whereDate('date', '>=', $transaction->date->format('Y-m-d'))
+    //         ->orderBy('date', 'asc')
+    //         ->get();
 
-        foreach ($stockMutations as $stockMutation) {
-            $endingStock = $beginStock + $stockMutation->qty_in - $stockMutation->qty_out;
-            $stockMutation->update([
-                'begin_stock' => $beginStock,
-                'ending_stock' => $endingStock,
-            ]);
-            $beginStock = $endingStock;
-        }
-    }
+    //     foreach ($stockMutations as $stockMutation) {
+    //         $endingStock = $beginStock + $stockMutation->qty_in - $stockMutation->qty_out;
+    //         $stockMutation->update([
+    //             'begin_stock' => $beginStock,
+    //             'ending_stock' => $endingStock,
+    //         ]);
+    //         $beginStock = $endingStock;
+    //     }
+    // }
 
     public function getProductionStockOnProject(int $projectId, int $itemVariantId): float
     {

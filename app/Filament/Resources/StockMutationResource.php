@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use Carbon\Carbon;
-use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
@@ -12,27 +11,23 @@ use App\Models\ItemVariant;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables\Filters\Indicator;
-use Illuminate\Database\Eloquent\Builder;
-use App\Models\StockMutation\StockMutation;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\StockMutationResource\Pages;
-use App\Filament\Resources\StockMutationResource\RelationManagers;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use Guava\FilamentModalRelationManagers\Actions\Table\RelationManagerAction;
 use App\Filament\Resources\StockMutationResource\RelationManagers\StockMutationDetailsRelationManager;
-use Filament\Forms\Get;
 
 class StockMutationResource extends Resource
 {
     protected static ?string $model = ItemVariant::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-square-3-stack-3d';
+    protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
 
     protected static ?string $modelLabel = 'Mutasi Stok';
 
     protected static ?string $navigationGroup = 'Manajemen Stok';
 
-    protected static ?int $navigationSort = 13;
+    protected static ?int $navigationSort = 14;
 
     public static function form(Form $form): Form
     {
@@ -97,7 +92,14 @@ class StockMutationResource extends Resource
                     ->query(fn () => null)
                     ->selectablePlaceholder(false)
                     ->default(fn () => Warehouse::orderBy('id')->value('id'))
-                    ->searchable(),
+                    ->searchable()
+                    ->indicateUsing(function ($state): array {
+                        $warehouse = Warehouse::find(1);
+                        return [
+                            Indicator::make('Gudang: '.$warehouse->name)
+                                ->removable(false),
+                        ];
+                    }),
                 DateRangeFilter::make('date')
                     ->label('Filter Tanggal')
                     ->query(fn () => null)

@@ -171,15 +171,22 @@ class PurchaseReturnResource extends Resource
             ->defaultSort('number', 'desc')
             ->recordUrl(null)
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('supplier_id')
+                    ->label('Pemasok')
+                    ->options(Supplier::all()->pluck('name', 'id'))
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Gudang')
+                    ->options(Warehouse::all()->pluck('name', 'id'))
+                    ->searchable()
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
             ]);
     }
 

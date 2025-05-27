@@ -185,7 +185,6 @@ class GoodReceiveResource extends Resource
                     ->label('Gudang')
                     ->options(Warehouse::all()->pluck('name', 'id'))
                     ->searchable()
-
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
@@ -193,9 +192,9 @@ class GoodReceiveResource extends Resource
 
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
             ]);
     }
 

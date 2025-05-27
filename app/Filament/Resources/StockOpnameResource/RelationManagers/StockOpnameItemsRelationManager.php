@@ -108,7 +108,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                                 ->required()
                                 ->afterStateUpdated(function (Set $set, Get $get, $state) {
                                     $diffStock = $state - $get('system_stock');
-                                    $set('diff_stock', trimDecimalZero($diffStock));
+                                    $set('diff_stock', with_prefix_diff($diffStock));
                                 })
                                 ->validationMessages([
                                     'required' => 'Stock Aktual wajib diisi.',
@@ -116,7 +116,7 @@ class StockOpnameItemsRelationManager extends RelationManager
                                 ]),
                             Forms\Components\TextInput::make('diff_stock')
                                 ->label('Selisih Stok')
-                                ->formatStateUsing(fn ($state) => trimDecimalZero($state))
+                                ->formatStateUsing(fn ($state) => with_prefix_diff($state))
                                 ->reactive()
                                 ->readOnly(),
                         ])->columnSpan(10)->columns(3),

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Item;
+use App\Models\Project;
+use App\Models\ItemVariant;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use Illuminate\Database\Eloquent\Model;
@@ -20,17 +23,14 @@ class ProductionReturnService
 
         foreach ($transactionDetails as $transactionDetail) {
             $beginStock = $stockService->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
-            if($transactionDetail->qty > $beginStock) {
-                $item = Item::find($transactionDetail->item_id);
-                $itemVariant = ItemVariant::find($transactionDetail->item_variant_id);
-                throw new \Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
-            }
 
             $stockService->updateStockItem($transaction, $transactionDetail, $beginStock, 'plus');
             $stockService->updateStockMutationForApprove($transaction, $transactionDetail);
         }
 
         $transaction->update(['status' => 'approve']);
+
+        $this->updateProject($transaction->project_id);
     }
 
     public function cancelApprove(Transaction $transaction): void
@@ -49,6 +49,8 @@ class ProductionReturnService
         }
 
         $transaction->update(['status' => 'draft']);
+
+        $this->updateProject($transaction->project_id);
     }
 
     public function addTransactionDetail(Model $transaction, array $data): void
@@ -67,6 +69,15 @@ class ProductionReturnService
                 'price' => $transactionDetail->price,
                 'type' => 'in'
             ]);
+    }
+
+    public function updateProject(int $projectId): void
+    {
+        $project = Project::find($projectId);
+
+        $project->update([
+            'material_cost' => $project->total_material_cost
+        ]);
     }
 }
 

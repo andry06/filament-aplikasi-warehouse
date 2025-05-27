@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use Filament\Forms;
 use Filament\Tables;
+use App\Models\Project;
 use Filament\Forms\Get;
 use Filament\Forms\Form;
 use App\Models\Warehouse;
@@ -32,7 +33,7 @@ class ProductionReturnResource extends Resource
 
     protected static ?string $navigationGroup = 'Produksi';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 12;
 
 
     public static function form(Form $form): Form
@@ -187,15 +188,26 @@ class ProductionReturnResource extends Resource
             ->recordUrl(null)
             ->defaultSort('number', 'desc')
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Gudang')
+                    ->options(Warehouse::all()->pluck('name', 'id'))
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('project_id')
+                    ->label('Nama Project')
+                    ->relationship(
+                        name: 'project',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->orderBy('name')
+                    )
+                    ->searchable(['name'])
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
             ]);
     }
 

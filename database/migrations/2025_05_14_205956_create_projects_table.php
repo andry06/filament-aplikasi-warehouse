@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->date('date')->nullable();
             $table->boolean('has_allocation')->default(false);
+            $table->bigInteger('material_cost')->default(0)->nullable();
             $table->boolean('is_completed')->default(false);
             $table->timestamps();
         });

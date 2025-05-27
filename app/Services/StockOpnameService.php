@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
+use App\Models\Item;
 use App\Models\ItemVariant;
 use App\Models\Transaction;
 use Illuminate\Support\Arr;
 use App\Services\StockService;
-use Carbon\Carbon;
 use PhpParser\Node\Expr\AssignOp\Mod;
 use Illuminate\Database\Eloquent\Model;
 
@@ -97,10 +98,10 @@ class StockOpnameService
 
         foreach ($transactionDetails as $transactionDetail) {
             $beginStock = $stockService->getStockForUpdate($transactionDetail->item_variant_id, $transaction->warehouse_id);
-            if($transactionDetail->qty > $beginStock) {
+            if($transactionDetail->type == 'out' && $transactionDetail->qty > $beginStock) {
                 $item = Item::find($transactionDetail->item_id);
                 $itemVariant = ItemVariant::find($transactionDetail->item_variant_id);
-                throw new Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
+                throw new \Exception("Stok barang $item->code - $itemVariant->color tidak mencukupi.");
             }
 
             $operationApprove = $transactionDetail->type == 'in' ? 'plus' : 'minus';
