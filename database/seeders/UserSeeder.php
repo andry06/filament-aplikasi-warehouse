@@ -24,7 +24,7 @@ class UserSeeder extends Seeder
             ],
             [
                 'name'           => 'Lilis',
-                'email'          => 'lilis@mail.com',
+                'email'          => 'lilis@gmail.com',
                 'password'       => Hash::make('password'),
                 'remember_token' => Str::random(10),
             ],

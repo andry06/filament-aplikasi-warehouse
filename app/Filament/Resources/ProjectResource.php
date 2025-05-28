@@ -32,7 +32,9 @@ class ProjectResource extends Resource
     {
         return $form
             ->schema([
-                //
+                Forms\Components\TextInput::make('name')
+                        ->label('Nama Project')
+                        ->required()
             ]);
     }
 

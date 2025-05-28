@@ -59,7 +59,7 @@ class GoodReceiveResource extends Resource
                         ->label('Gudang')
                         ->options(Warehouse::all()->pluck('name', 'id'))
                         ->disabled(fn ($livewire) => $livewire->record?->status == 'approve')
-                        ->default(fn () => Warehouse::first()->value('id')),
+                        ->default(fn () => Warehouse::orderBy('id')->value('id')),
                     Forms\Components\Select::make('supplier_id')
                         ->label('Supplier')
                         ->options(Supplier::all()->pluck('name', 'id'))

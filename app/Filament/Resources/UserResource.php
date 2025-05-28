@@ -2,16 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UserResource\Pages;
-use App\Filament\Resources\UserResource\RelationManagers;
-use App\Models\User;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
+use App\Models\User;
 use Filament\Tables;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Filament\Resources\Resource;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Resources\UserResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\UserResource\RelationManagers;
 
 class UserResource extends Resource
 {
@@ -77,6 +78,7 @@ class UserResource extends Resource
                                 ->label('Password')
                                 ->password()
                                 ->required(fn (string $context): bool => $context === 'create')
+                                ->visible(fn () => in_array(Auth::id(), [1, 2]))
                                 ->dehydrated(fn ($state) => filled($state)),
                         ])
                         ->columnSpan(8),
@@ -131,8 +133,16 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make()->label('')->tooltip('Edit')->iconSize('md'),
-                Tables\Actions\DeleteAction::make()->label('')->tooltip('Hapus')->iconSize('md'),
+                Tables\Actions\EditAction::make()
+                    ->label('')
+                    ->tooltip('Edit')
+                    ->iconSize('md')
+                    ->visible(fn () => in_array(Auth::id(), [1, 2])),
+                Tables\Actions\DeleteAction::make()
+                    ->label('')
+                    ->tooltip('Hapus')
+                    ->iconSize('md')
+                    ->visible(fn () => in_array(Auth::id(), [1, 2])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

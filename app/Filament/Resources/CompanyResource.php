@@ -106,6 +106,6 @@ class CompanyResource extends Resource
 
     public static function canCreate(): bool
     {
-        return ! static::getModel()::count() > 1;
+        return static::getModel()::count() < 1;
     }
 }

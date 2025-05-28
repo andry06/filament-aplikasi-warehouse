@@ -16,6 +16,8 @@ use App\Filament\Resources\StockMutationResource\Pages;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use Guava\FilamentModalRelationManagers\Actions\Table\RelationManagerAction;
 use App\Filament\Resources\StockMutationResource\RelationManagers\StockMutationDetailsRelationManager;
+use App\Models\Stock;
+use App\Models\StockMutation;
 
 class StockMutationResource extends Resource
 {
@@ -28,6 +30,13 @@ class StockMutationResource extends Resource
     protected static ?string $navigationGroup = 'Manajemen Stok';
 
     protected static ?int $navigationSort = 14;
+
+    // public static function shouldRegisterNavigation(): bool
+    // {
+    //     return StockMutation::count() > 0;
+    // }
+
+
 
     public static function form(Form $form): Form
     {
@@ -95,8 +104,9 @@ class StockMutationResource extends Resource
                     ->searchable()
                     ->indicateUsing(function ($state): array {
                         $warehouse = Warehouse::find(1);
+                        $warehouseName = $warehouse ? $warehouse->name : 'Gudang';
                         return [
-                            Indicator::make('Gudang: '.$warehouse->name)
+                            Indicator::make('Gudang: '. $warehouseName)
                                 ->removable(false),
                         ];
                     }),
